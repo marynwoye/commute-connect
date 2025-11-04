@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from "react";
+import MapSelector from "./MapSelector";
+
 import {
   getEmployees,
   createEmployee,
@@ -68,16 +70,21 @@ function App() {
       <h1>🚗 Commute & Connect — Employee Directory</h1>
 
       <div style={{ marginBottom: "20px" }}>
-        {["FirstName", "LastName", "Email", "Department", "Gender", "Location", "OfficeAddress"].map((field) => (
-          <input
-            key={field}
-            name={field}
-            placeholder={field}
-            value={form[field]}
-            onChange={handleChange}
-            style={{ marginRight: "10px", padding: "5px" }}
-          />
-        ))}
+  <h2>Select your location on the map:</h2>
+  <MapSelector
+    onLocationSelect={(lat, lng) => setForm({ ...form, Location: `${lat}, ${lng}` })}
+  />
+
+  {["FirstName", "LastName", "Email", "Department", "Gender", "Location", "OfficeAddress"].map((field) => (
+    <input
+      key={field}
+      name={field}
+      placeholder={field}
+      value={form[field]}
+      onChange={handleChange}
+      style={{ marginRight: "10px", padding: "5px" }}
+    />
+  ))}
         <button onClick={handleSubmit}>
           {editing ? "Update Employee" : "Add Employee"}
         </button>
