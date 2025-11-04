@@ -1,79 +1,100 @@
 import React, { useEffect, useState } from "react";
-import { getUsers, createUser, deleteUser, updateUser } from "./api";
+import {
+  getEmployees,
+  createEmployee,
+  deleteEmployee,
+  updateEmployee,
+} from "./api";
 
 function App() {
-  const [users, setUsers] = useState([]);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [editingUser, setEditingUser] = useState(null); // new state
+  const [employees, setEmployees] = useState([]);
+  const [form, setForm] = useState({
+    FirstName: "",
+    LastName: "",
+    Email: "",
+    Department: "",
+    Gender: "",
+    Location: "",
+    OfficeAddress: "",
+  });
+  const [editing, setEditing] = useState(null);
 
-  // Fetch users when app loads
   useEffect(() => {
-    getUsers().then(setUsers);
+    getEmployees().then(setEmployees);
   }, []);
 
-  const handleAdd = async () => {
-    if (!name || !email) {
-      alert("Please enter both name and email");
+  const handleChange = (e) =>
+    setForm({ ...form, [e.target.name]: e.target.value });
+
+  const handleSubmit = async () => {
+    if (!form.FirstName || !form.LastName || !form.Email) {
+      alert("Please fill out First Name, Last Name, and Email");
       return;
     }
 
-    if (editingUser) {
-      // UPDATE existing user
-      await updateUser(editingUser.id, name, email);
-      setEditingUser(null);
+    if (editing) {
+      await updateEmployee(editing.EmployeeID, form);
     } else {
-      // CREATE new user
-      await createUser(name, email);
+      await createEmployee(form);
     }
 
-    const updated = await getUsers();
-    setUsers(updated);
-    setName("");
-    setEmail("");
+    const updated = await getEmployees();
+    setEmployees(updated);
+    setForm({
+      FirstName: "",
+      LastName: "",
+      Email: "",
+      Department: "",
+      Gender: "",
+      Location: "",
+      OfficeAddress: "",
+    });
+    setEditing(null);
+  };
+
+  const handleEdit = (emp) => {
+    setForm(emp);
+    setEditing(emp);
   };
 
   const handleDelete = async (id) => {
-    await deleteUser(id);
-    const updated = await getUsers();
-    setUsers(updated);
-  };
-
-  const handleEdit = (user) => {
-    setEditingUser(user);
-    setName(user.name);
-    setEmail(user.email);
+    await deleteEmployee(id);
+    const updated = await getEmployees();
+    setEmployees(updated);
   };
 
   return (
     <div style={{ padding: "30px", fontFamily: "Arial" }}>
-      <h1>🚗 Commute & Connect</h1>
+      <h1>🚗 Commute & Connect — Employee Directory</h1>
 
       <div style={{ marginBottom: "20px" }}>
-        <input
-          type="text"
-          placeholder="Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          style={{ marginRight: "10px", padding: "5px" }}
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ marginRight: "10px", padding: "5px" }}
-        />
-        <button onClick={handleAdd}>
-          {editingUser ? "Update User" : "Add User"}
+        {["FirstName", "LastName", "Email", "Department", "Gender", "Location", "OfficeAddress"].map((field) => (
+          <input
+            key={field}
+            name={field}
+            placeholder={field}
+            value={form[field]}
+            onChange={handleChange}
+            style={{ marginRight: "10px", padding: "5px" }}
+          />
+        ))}
+        <button onClick={handleSubmit}>
+          {editing ? "Update Employee" : "Add Employee"}
         </button>
-        {editingUser && (
+        {editing && (
           <button
             style={{ marginLeft: "10px" }}
             onClick={() => {
-              setEditingUser(null);
-              setName("");
-              setEmail("");
+              setEditing(null);
+              setForm({
+                FirstName: "",
+                LastName: "",
+                Email: "",
+                Department: "",
+                Gender: "",
+                Location: "",
+                OfficeAddress: "",
+              });
             }}
           >
             Cancel
@@ -82,11 +103,15 @@ function App() {
       </div>
 
       <ul>
-        {users.map((u) => (
-          <li key={u.id}>
-            {u.name} ({u.email}){" "}
-            <button onClick={() => handleEdit(u)}>✏️ Edit</button>{" "}
-            <button onClick={() => handleDelete(u.id)}>❌ Delete</button>
+        {employees.map((emp) => (
+          <li key={emp.EmployeeID}>
+            <strong>{emp.FirstName} {emp.LastName}</strong> — {emp.Email} ({emp.Department || "No Dept"})
+            <br />
+            {emp.Gender && `Gender: ${emp.Gender} | `}
+            {emp.Location && `Location: ${emp.Location}`} <br />
+            <button onClick={() => handleEdit(emp)}>✏️ Edit</button>{" "}
+            <button onClick={() => handleDelete(emp.EmployeeID)}>❌ Delete</button>
+            <hr />
           </li>
         ))}
       </ul>

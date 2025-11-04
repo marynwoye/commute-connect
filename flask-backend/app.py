@@ -1,4 +1,4 @@
-# app.py — Flask backend for Commute & Connect (CRUD for users)
+# app.py — Flask backend for Commute & Connect (CRUD for Employees)
 
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -13,12 +13,12 @@ CORS(app)  # allow all origins (React can connect from any local port)
 def health_check():
     return jsonify({"status": "ok"})
 
-# ---- MySQL connection settings ----
+# ---------- MySQL connection settings ----------
 DB_CONFIG = {
     "host": "localhost",
     "user": "root",
     "password": "Nwoye2025",  # your MySQL root password
-    "database": "commute_connect",
+    "database": "commute_connect_v2",  # your new database
     "cursorclass": pymysql.cursors.DictCursor,
     "autocommit": True
 }
@@ -28,24 +28,29 @@ def get_conn():
     return pymysql.connect(**DB_CONFIG)
 
 # ---------- CREATE ----------
-@app.route("/users", methods=["POST"])
-def create_user():
+@app.route("/employees", methods=["POST"])
+def create_employee():
     data = request.get_json(force=True)
-    name = data.get("name")
-    email = data.get("email")
+    first_name = data.get("FirstName")
+    last_name = data.get("LastName")
+    email = data.get("Email")
+    department = data.get("Department")
+    gender = data.get("Gender")
+    location = data.get("Location")
+    office_address = data.get("OfficeAddress")
 
-    if not name or not email:
-        return jsonify({"error": "name and email are required"}), 400
+    if not (first_name and last_name and email):
+        return jsonify({"error": "FirstName, LastName, and Email are required"}), 400
 
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            cur.execute(
-                "INSERT INTO users (name, email) VALUES (%s, %s)",
-                (name, email)
-            )
+            cur.execute("""
+                INSERT INTO Employee (FirstName, LastName, Email, Department, Gender, Location, OfficeAddress)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """, (first_name, last_name, email, department, gender, location, office_address))
             new_id = cur.lastrowid
-        return jsonify({"message": "User created", "id": new_id}), 201
+        return jsonify({"message": "Employee created", "EmployeeID": new_id}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
@@ -55,12 +60,12 @@ def create_user():
             pass
 
 # ---------- READ ----------
-@app.route("/users", methods=["GET"])
-def get_users():
+@app.route("/employees", methods=["GET"])
+def get_employees():
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            cur.execute("SELECT id, name, email FROM users ORDER BY id DESC")
+            cur.execute("SELECT * FROM Employee ORDER BY EmployeeID DESC")
             rows = cur.fetchall()
         return jsonify(rows), 200
     except Exception as e:
@@ -72,29 +77,30 @@ def get_users():
             pass
 
 # ---------- UPDATE ----------
-@app.route("/users/<int:user_id>", methods=["PUT"])
-def update_user(user_id):
+@app.route("/employees/<int:employee_id>", methods=["PUT"])
+def update_employee(employee_id):
     data = request.get_json(force=True)
-    name = data.get("name")
-    email = data.get("email")
+    first_name = data.get("FirstName")
+    last_name = data.get("LastName")
+    department = data.get("Department")
+    location = data.get("Location")
 
-    if not name or not email:
-        return jsonify({"error": "name and email are required"}), 400
+    if not (first_name and last_name):
+        return jsonify({"error": "FirstName and LastName are required"}), 400
 
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            cur.execute(
-                "UPDATE users SET name=%s, email=%s WHERE id=%s",
-                (name, email, user_id)
-            )
-            conn.commit()  # ✅ ensure the change is saved
-            changed = cur.rowcount
-        if changed == 0:
-            return jsonify({"message": "No user updated (check id)"}), 404
-        return jsonify({"message": "User updated"}), 200
+            cur.execute("""
+                UPDATE Employee
+                SET FirstName=%s, LastName=%s, Department=%s, Location=%s
+                WHERE EmployeeID=%s
+            """, (first_name, last_name, department, location, employee_id))
+            affected = cur.rowcount
+        if affected == 0:
+            return jsonify({"message": "No employee updated (check ID)"}), 404
+        return jsonify({"message": "Employee updated successfully"}), 200
     except Exception as e:
-        print("UPDATE ERROR:", e)
         return jsonify({"error": str(e)}), 500
     finally:
         try:
@@ -103,16 +109,16 @@ def update_user(user_id):
             pass
 
 # ---------- DELETE ----------
-@app.route("/users/<int:user_id>", methods=["DELETE"])
-def delete_user(user_id):
+@app.route("/employees/<int:employee_id>", methods=["DELETE"])
+def delete_employee(employee_id):
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM users WHERE id=%s", (user_id,))
-            changed = cur.rowcount
-        if changed == 0:
-            return jsonify({"message": "No user deleted (check id)"}), 404
-        return jsonify({"message": "User deleted"}), 200
+            cur.execute("DELETE FROM Employee WHERE EmployeeID=%s", (employee_id,))
+            affected = cur.rowcount
+        if affected == 0:
+            return jsonify({"message": "No employee deleted (check ID)"}), 404
+        return jsonify({"message": "Employee deleted successfully"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
@@ -120,7 +126,6 @@ def delete_user(user_id):
             conn.close()
         except:
             pass
-
 
 # ----------- RUN -----------
 if __name__ == "__main__":
