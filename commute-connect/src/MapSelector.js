@@ -1,104 +1,247 @@
-// MapSelector.js - Shows the Interative Map 
-// React leafelt is a libary in React that displays map tiles, markers and popup
-// Code below for setting up the map structure, markers, and click events
-// was adapted from “A Friendly Guide to Using React-Leaflet with React”
-// by DigitalPollution (DEV Community, 2023).(1)
-// I expanded the example by fetching live employee data from my Flask backend,
-// adding custom marker icons, and showing multiple employee pins on the map.
-import React, { useState, useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
+// MapSelector.js
+import React from "react";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Polyline,
+} from "react-leaflet";
 import L from "leaflet";
-import "leaflet-defaulticon-compatibility";
-import "leaflet-defaulticon-compatibility/dist/leaflet-defaulticon-compatibility.css";
-import { getEmployees } from "./api"; // fetching employee data from the backend
+import "leaflet/dist/leaflet.css";
 
-// Tells Leafelt to use a red icon marker for employees on map 
-// Red marker icon used from the open-source "leaflet-color-markers" GitHub repository
-// by user pointhi (2016). Available at: https://github.com/pointhi/leaflet-color-markers
-// Used for employee location pins on the map.(2)
-// ChatGPT (OpenAI, 2025) advised that it is good practice to include a shadow image
-// for map markers to improve visual quality, and provided the official Leaflet URL (3)
-// for the shadow image: https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png
-// I added this to the icon setup as part of good UI practice.
-const redIcon = new L.Icon({
+// ----------------------------------------------------
+// ICONS
+// ----------------------------------------------------
+const officeIcon = new L.Icon({
   iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
   shadowUrl:
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-  iconSize: [25, 41], // size of the marker icon
-  iconAnchor: [12, 41], // where it sits on the map
-  popupAnchor: [1, -34],  // where the popups appear in relation to the pin 
-  shadowSize: [41, 41],  // the size of the shadow image 
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
 });
 
-// Location marker - handles what happens when a user clicks on the map 
-// Creates a marker in the spot that you click 
-// Adapted from React-Leaflet event example (Reference [1])
-function LocationMarker({ onSelect }) {
-  const [position, setPosition] = useState(null);
+const meetupIcon = new L.Icon({
+  iconUrl:
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+  shadowUrl:
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
 
-  useMapEvents({
-    click(e) {
-      setPosition(e.latlng); // this runs everytime a user clicks on the map Saves where u clciked longitude/latitude
-      onSelect(e.latlng.lat, e.latlng.lng);  // sends those numbers back to App.js  
-    },
-  });
+// ----------------------------------------------------
+// OFFICE PHOTO MARKER (custom image icon)
+// ----------------------------------------------------
+const officePhotoIcon = new L.Icon({
+  iconUrl: "https://i.imgur.com/3Q8gVnB.jpeg", // public Deloitte building photo
+  iconSize: [55, 55], // image size
+  iconAnchor: [27, 55], // bottom center
+  className: "office-photo-marker"
+});
 
-  return position ? <Marker position={position}></Marker> : null; // If a postion exists will show otherwise shows nothing
+// ----------------------------------------------------
+// DELOITTE OFFICE LOCATIONS
+// ----------------------------------------------------
+const deloitteOffices = [
+  {
+    name: "Deloitte Dublin - Earlsfort Terrace",
+    position: [53.3336, -6.2581],
+    image: "https://i.imgur.com/3Q8gVnB.jpeg"
+  },
+  {
+    name: "Deloitte Dublin - George's Dock",
+    position: [53.3489, -6.2435],
+    image: null
+  },
+  {
+    name: "Deloitte Dublin - Burlington Road",
+    position: [53.3309, -6.2416],
+    image: null
+  },
+];
+
+// ----------------------------------------------------
+// MEETUP LOOKUP TABLE
+// ----------------------------------------------------
+const meetupLookup = {
+  "Tallaght Luas Stop": [53.286, -6.374],
+  "Heuston Station": [53.3463, -6.2967],
+  "Ranelagh Luas Stop": [53.3244, -6.2517],
+  "Sandyford Luas Stop": [53.2783, -6.2086],
+  "Stephens Green Luas Stop": [53.3381, -6.2590],
+  "Dundrum Luas Stop": [53.2899, -6.2417],
+  "Broombridge Luas Stop": [53.3720, -6.2990],
+  "George's Street Arcade": [53.3436, -6.2634],
+  "O'Connell Street Spire": [53.3498, -6.2603],
+  "Trinity College Front Gate": [53.3440, -6.2597],
+  "Temple Bar Square": [53.3453, -6.2640],
+  "Grand Canal Dock": [53.3396, -6.2374],
+  "Clonskeagh Village": [53.3098, -6.2348],
+  "IFSC (Mayor Street)": [53.3489, -6.2372],
+};
+
+// ----------------------------------------------------
+// LUAS RED LINE COORDS
+// ----------------------------------------------------
+const luasRedLineCoords = [
+  [53.2859, -6.3733],
+  [53.298, -6.342],
+  [53.304, -6.316],
+  [53.3155, -6.3088],
+  [53.323, -6.306],
+  [53.334, -6.3],
+  [53.339, -6.291],
+  [53.343, -6.277],
+  [53.3463, -6.2607],
+  [53.3502, -6.2515],
+];
+
+// ----------------------------------------------------
+// LUAS GREEN LINE COORDS
+// ----------------------------------------------------
+const luasGreenLineCoords = [
+  [53.2273, -6.1377],
+  [53.2606, -6.2005],
+  [53.2711, -6.2408],
+  [53.288, -6.26],
+  [53.3378, -6.2617],
+  [53.3568, -6.2773],
+];
+
+// ----------------------------------------------------
+// LEGEND
+// ----------------------------------------------------
+function Legend() {
+  return (
+    <div
+      style={{
+        background: "white",
+        padding: "10px 14px",
+        borderRadius: "8px",
+        boxShadow: "0 0 8px rgba(0,0,0,0.2)",
+        fontSize: "14px",
+        lineHeight: "1.4",
+        position: "absolute",
+        top: "10px",
+        right: "10px",
+        zIndex: 9999,
+      }}
+    >
+      <div style={{ fontWeight: "bold", marginBottom: "6px" }}>Map Legend</div>
+
+      <div className="legend-item" style={{ marginBottom: "6px" }}>
+        <div
+          style={{
+            width: "15px",
+            height: "15px",
+            background: "red",
+            marginRight: "8px",
+          }}
+        ></div>
+        Luas Red Line
+      </div>
+
+      <div className="legend-item" style={{ marginBottom: "6px" }}>
+        <div
+          style={{
+            width: "15px",
+            height: "15px",
+            background: "green",
+            marginRight: "8px",
+          }}
+        ></div>
+        Luas Green Line
+      </div>
+
+      <div className="legend-item" style={{ marginBottom: "6px" }}>
+        <img
+          src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png"
+          width="14"
+          alt=""
+          style={{ marginRight: "6px" }}
+        />
+        Deloitte Offices
+      </div>
+
+      <div className="legend-item">
+        <img
+          src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png"
+          width="14"
+          alt=""
+          style={{ marginRight: "6px" }}
+        />
+        Employee Meetup Points
+      </div>
+    </div>
+  );
 }
 
-// Main MapSelector component - what is imported and shown in app.js file
-export default function MapSelector({ onLocationSelect }) {
-  const [employees, setEmployees] = useState([]);  // storing all employees from the backend 
-// useeffect runs this code once when the map first loads 
-  useEffect(() => {
-    // getEmployees()asks flask for all employees
-    getEmployees().then((data) => {
-      console.log("Fetched employees:", data);  // checking what came back
-      const withLocations = data.filter((e) => { // filter keeps employees that have valid map coordinates 
-        if (!e.Location) return false; // skips anyone without a saved location
-        const parts = e.Location.split(",").map((v) => v.trim());
-        return parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1]);
-      });
-      setEmployees(withLocations);  // stores the filtered list so i can show red pins on them on the map
-    });
-  }, []);  // only does this once when the first page shows 
-// returning the map layout
+// ----------------------------------------------------
+// MAIN MAP COMPONENT
+// ----------------------------------------------------
+export default function MapSelector({ commuteProfiles }) {
   return (
     <MapContainer
-      center={[53.3498, -6.2603]} // Dublin
+      center={[53.3498, -6.2603]}
       zoom={12}
-      style={{ height: "400px", width: "100%", marginBottom: "20px" }}
+      style={{ height: "450px", width: "100%", position: "relative" }}
     >
-      
-      <TileLayer  // Map tiles © OpenStreetMap contributors (ODbL) — https://www.openstreetmap.org/ (4)
-        attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'  // base map tiles are from (open street maps)
+      <TileLayer
+        attribution="&copy; OpenStreetMap contributors"
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {/* red pins Commute group pins (employees) */}
-      {employees.map((emp) => {
-        try {   // Split the location into latitude and longitude numbers
-          const [lat, lng] = emp.Location.split(",").map((v) => parseFloat(v.trim()));
+      {/* LUAS LINES */}
+      <Polyline positions={luasRedLineCoords} color="red" weight={4} />
+      <Polyline positions={luasGreenLineCoords} color="green" weight={4} />
+
+      {/* DELOITTE OFFICES */}
+      {deloitteOffices.map((office, index) => (
+        <Marker
+          key={index}
+          position={office.position}
+          icon={office.image ? officePhotoIcon : officeIcon}
+        >
+          <Popup>
+            <strong>{office.name}</strong>
+            <br />
+            Deloitte Dublin Office
+            <br />
+            {office.image && (
+              <img
+                src={office.image}
+                alt={office.name}
+                style={{ width: "100%", marginTop: "10px", borderRadius: "6px" }}
+              />
+            )}
+          </Popup>
+        </Marker>
+      ))}
+
+      {/* COMMUTE PROFILE PINS */}
+      {commuteProfiles &&
+        commuteProfiles.map((p, index) => {
+          const coords = meetupLookup[p.MeetupLocation];
+          if (!coords) return null;
+
           return (
-            <Marker key={emp.EmployeeID} position={[lat, lng]} icon={redIcon}>
-              <Popup> 
-                <strong>{emp.FirstName} {emp.LastName}</strong> 
+            <Marker key={index} position={coords} icon={meetupIcon}>
+              <Popup>
+                <strong>{p.FirstName}</strong>
                 <br />
-                Dept: {emp.Department || "N/A"} <br />
-                Office: {emp.OfficeAddress || "N/A"}
+                {p.Department}, {p.Gender}
+                <br />
+                Prefers: {p.TransportPreference}
+                <br />
+                Meetup: {p.MeetupLocation}
               </Popup>
             </Marker>
           );
-        } catch (err) {
-          console.warn("Invalid location for employee:", emp, err);
-          return null; // skip amy employee with bad lcoation data
-        }
-      })}
+        })}
 
-      {/*Blue marker when user clicks  */}
-      <LocationMarker onSelect={onLocationSelect} />
+      <Legend />
     </MapContainer>
   );
 }

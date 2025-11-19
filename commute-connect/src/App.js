@@ -1,20 +1,57 @@
-// src/App.js - the main part of the react app
-// Whats shows up when i run my react app
+// App.js
 import React from "react";
-import MapSelector from "./MapSelector";  // Importing map component 
-// main fucntion componet for my app
-function App() {
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+
+import CommuteProfileForm from "./CommuteProfileForm";
+import LoginForm from "./LoginForm";
+import MapSelector from "./MapSelector";
+
+import { useState, useEffect } from "react";
+import { getCommuteProfiles } from "./api";
+
+// --------------------------------------------------
+// MAP PAGE – loads commute profiles every time
+// --------------------------------------------------
+function MapPage() {
+  const [profiles, setProfiles] = useState([]);
+
+  useEffect(() => {
+    const load = async () => {
+      const data = await getCommuteProfiles();
+      setProfiles(data);
+    };
+    load(); // 🔥 Always reload when visiting /map
+  }, []);
+
   return (
-    <div style={{ padding: "30px", fontFamily: "Arial" }}>
+    <div style={{ padding: "20px" }}>
       <h1>🚗 Commute & Connect</h1>
-      <h2>Select your location on the map:</h2>
-      <MapSelector
-        onLocationSelect={(lat, lng) => {  // when user clicks on map longitude/latitude shows in console(if i dispaly crud)
-          console.log("Selected location:", lat, lng); // it does not save the location to the databse yet, iteration 2 when users can create accounts..
-        }}                                              // this will be updated so chosen location get saved to MySql
-      />
+      <h3>Meetup locations & Deloitte offices shown below</h3>
+      <MapSelector commuteProfiles={profiles} />
     </div>
   );
 }
 
-export default App;
+// --------------------------------------------------
+// MAIN APP ROUTER
+// --------------------------------------------------
+export default function App() {
+  return (
+    <Router>
+      {/* Navigation Bar */}
+      <nav style={{ padding: "15px", background: "#f0f0f0", marginBottom: "20px" }}>
+        <Link to="/" style={{ marginRight: "20px" }}>Home</Link>
+        <Link to="/login" style={{ marginRight: "20px" }}>Login</Link>
+        <Link to="/create-profile" style={{ marginRight: "20px" }}>Create Profile</Link>
+        <Link to="/map">Map</Link>
+      </nav>
+
+      <Routes>
+        <Route path="/" element={<h1>Welcome to Commute & Connect</h1>} />
+        <Route path="/login" element={<LoginForm />} />
+        <Route path="/create-profile" element={<CommuteProfileForm />} />
+        <Route path="/map" element={<MapPage />} />
+      </Routes>
+    </Router>
+  );
+}

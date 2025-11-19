@@ -31,3 +31,52 @@ export async function updateEmployee(id, employee) {
   });
   return res.json();
 }
+
+
+// ------------------------------
+// COMMUTE PROFILE API FUNCTIONS
+// ------------------------------
+
+// Create a commute profile
+// Create a commute profile
+export async function createCommuteProfile(profile) {
+  console.log("Calling POST /commute-profile");
+  console.log("URL:", `${API_BASE}/commute-profile`);
+  console.log("Sending profile:", profile);
+
+  const res = await fetch(`${API_BASE}/commute-profile`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(profile),
+  });
+
+  console.log("Raw response:", res);
+
+  const data = await res.json();
+  console.log("Response data:", data);
+
+  return data;
+}
+
+
+// Get all commute profiles
+export async function getCommuteProfiles() {
+  const res = await fetch(`${API_BASE}/commute-profile`);
+  return res.json();
+}
+
+export async function loginUser(data) {
+  try {
+    const res = await fetch("http://127.0.0.1:5000/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+
+    return await res.json();
+
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
