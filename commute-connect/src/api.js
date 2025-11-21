@@ -1,6 +1,6 @@
-// api.js // This file handles communication between react frontend n flask backend
-// sends and receives data using HTTP requests //
-// Stack Overflow post using fetch with Json https://stackoverflow.com/questions/29775797/fetch-post-json-data
+// This file handles communication between react frontend n flask backend
+// sends and receives data using HTTP requests 
+// Stack Overflow post using fetch with Json https://stackoverflow.com/questions/29775797/fetch-post-json-data [6]
 const API_BASE = "http://127.0.0.1:5000";  // where my flask app runs locally atm 
 
 // get all employees asks flask for a list of all employees in the database
@@ -11,7 +11,7 @@ export async function getEmployees() {
 
 export async function createEmployee(employee) {  // sends the form data from React to Flask to add a new employee
   const res = await fetch(`${API_BASE}/employees`, {
-    method: "POST", // HTTP method for creating new data
+    method: "POST", //  creating new data
     headers: { "Content-Type": "application/json" }, // telling Flask sending JSON data
     body: JSON.stringify(employee),  // send updated employee data
   });
@@ -19,7 +19,7 @@ export async function createEmployee(employee) {  // sends the form data from Re
 }
 
 export async function deleteEmployee(id) {
-  const res = await fetch(`${API_BASE}/employees/${id}`, { method: "DELETE" });
+  const res = await fetch(`${API_BASE}/employees/${id}`, { method: "DELETE" });  // removing a record
   return res.json();  // Get Flasks response as JSON
 }
 
@@ -33,12 +33,10 @@ export async function updateEmployee(id, employee) {
 }
 
 
-// ------------------------------
-// COMMUTE PROFILE API FUNCTIONS
-// ------------------------------
+// Commute profile API funcation
 
-// Create a commute profile
-// Create a commute profile
+// Creating a commute profile and sending to Flask
+
 export async function createCommuteProfile(profile) {
   console.log("Calling POST /commute-profile");
   console.log("URL:", `${API_BASE}/commute-profile`);
@@ -59,12 +57,13 @@ export async function createCommuteProfile(profile) {
 }
 
 
-// Get all commute profiles
+// Get all commute profiles to show the pins on map 
 export async function getCommuteProfiles() {
   const res = await fetch(`${API_BASE}/commute-profile`);
   return res.json();
 }
 
+// user log in fucntion - sends email and password to flask for validation - not full functional carried forward to iteration 3
 export async function loginUser(data) {
   try {
     const res = await fetch("http://127.0.0.1:5000/login", {

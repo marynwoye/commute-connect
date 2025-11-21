@@ -1,6 +1,6 @@
-// App.js
+// control navigation between pages
 import React from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom"; //[React Router 9]
 
 import CommuteProfileForm from "./CommuteProfileForm";
 import LoginForm from "./LoginForm";
@@ -9,36 +9,38 @@ import MapSelector from "./MapSelector";
 import { useState, useEffect } from "react";
 import { getCommuteProfiles } from "./api";
 
-// --------------------------------------------------
-// MAP PAGE – loads commute profiles every time
-// --------------------------------------------------
+
+// map page component
+// it is retriving all commute profile form the backend end 
+// so employye meet up pins can be displayed on the map
+
 function MapPage() {
   const [profiles, setProfiles] = useState([]);
 
   useEffect(() => {
-    const load = async () => {
+    const load = async () => {  // loading profile from the backend
       const data = await getCommuteProfiles();
       setProfiles(data);
     };
-    load(); // 🔥 Always reload when visiting /map
+    load(); // ensuring the map refreshes everytime a user opens the map
   }, []);
 
   return (
     <div style={{ padding: "20px" }}>
       <h1>🚗 Commute & Connect</h1>
-      <h3>Meetup locations & Deloitte offices shown below</h3>
+      <h3>Map Below</h3>
       <MapSelector commuteProfiles={profiles} />
     </div>
   );
 }
 
-// --------------------------------------------------
-// MAIN APP ROUTER
-// --------------------------------------------------
+
+// using react router to control different pages in the system
+// navigation bar and routes 
 export default function App() {
   return (
     <Router>
-      {/* Navigation Bar */}
+      {/* navigation bar */}
       <nav style={{ padding: "15px", background: "#f0f0f0", marginBottom: "20px" }}>
         <Link to="/" style={{ marginRight: "20px" }}>Home</Link>
         <Link to="/login" style={{ marginRight: "20px" }}>Login</Link>

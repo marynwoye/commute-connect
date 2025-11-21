@@ -1,4 +1,5 @@
-// MapSelector.js
+
+// Displays the iteracative map - [1] Adapted for map setup, markers, and event handling 
 import React from "react";
 import {
   MapContainer,
@@ -6,65 +7,64 @@ import {
   Marker,
   Popup,
   Polyline,
+  Polygon,
+  Tooltip
 } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
-// ----------------------------------------------------
-// ICONS
-// ----------------------------------------------------
+
+// icons to visually spearte deloitte office(ornage icons)
+// open source leaflet colour markers (refrence here )
 const officeIcon = new L.Icon({
   iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png",//[2]
   shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png", // [4]
+  iconSize: [25, 41], // marker image size 
+  iconAnchor: [12, 41], // pin points correct place on the map
 });
 
 const meetupIcon = new L.Icon({
   iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
+    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png", //[2]
   shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png", //[4]
   iconSize: [25, 41],
   iconAnchor: [12, 41],
 });
 
-// ----------------------------------------------------
-// OFFICE PHOTO MARKER (custom image icon)
-// ----------------------------------------------------
-const officePhotoIcon = new L.Icon({
-  iconUrl: "https://i.imgur.com/3Q8gVnB.jpeg", // public Deloitte building photo
-  iconSize: [55, 55], // image size
-  iconAnchor: [27, 55], // bottom center
-  className: "office-photo-marker"
-});
 
-// ----------------------------------------------------
-// DELOITTE OFFICE LOCATIONS
-// ----------------------------------------------------
+// deloitte campus polygon - co ordinates to outline the deloite campus area
+// Used to highlight deloitte hatch street 
+const deloittePolygon = [
+  [53.334550, -6.259300],
+  [53.334050, -6.259900],
+  [53.333700, -6.260300],
+  [53.333300, -6.260700],
+  [53.333000, -6.260400],
+  [53.333150, -6.259800],
+  [53.333500, -6.259300],
+];
+
+
+// deloitte offcie loactions (2 of the offcies co-ordinates)
 const deloitteOffices = [
   {
     name: "Deloitte Dublin - Earlsfort Terrace",
-    position: [53.3336, -6.2581],
-    image: "https://i.imgur.com/3Q8gVnB.jpeg"
+    position: [53.3337, -6.2592] 
   },
   {
-    name: "Deloitte Dublin - George's Dock",
-    position: [53.3489, -6.2435],
-    image: null
-  },
-  {
-    name: "Deloitte Dublin - Burlington Road",
-    position: [53.3309, -6.2416],
-    image: null
-  },
+    name: "Deloitte Dublin - Three Park Place (Hatch St Upper)",
+    position: [53.3334, -6.2605] 
+  }
 ];
 
-// ----------------------------------------------------
-// MEETUP LOOKUP TABLE
-// ----------------------------------------------------
+
+// meetup lookup table
+// employees options of meetup location from the drop down menu
+// converting the location names in bacekend to coordinates
+
 const meetupLookup = {
   "Tallaght Luas Stop": [53.286, -6.374],
   "Heuston Station": [53.3463, -6.2967],
@@ -82,9 +82,11 @@ const meetupLookup = {
   "IFSC (Mayor Street)": [53.3489, -6.2372],
 };
 
-// ----------------------------------------------------
-// LUAS RED LINE COORDS
-// ----------------------------------------------------
+
+// polyline in my map to visually repsern the green and red luas line
+// not accurate gathered using open street maps 
+// [10 Stakeoverflow] - Adpated for polyline in React
+
 const luasRedLineCoords = [
   [53.2859, -6.3733],
   [53.298, -6.342],
@@ -98,9 +100,6 @@ const luasRedLineCoords = [
   [53.3502, -6.2515],
 ];
 
-// ----------------------------------------------------
-// LUAS GREEN LINE COORDS
-// ----------------------------------------------------
 const luasGreenLineCoords = [
   [53.2273, -6.1377],
   [53.2606, -6.2005],
@@ -110,9 +109,9 @@ const luasGreenLineCoords = [
   [53.3568, -6.2773],
 ];
 
-// ----------------------------------------------------
-// LEGEND
-// ----------------------------------------------------
+
+// Map legend - places above the map for users to understnad what all icons represent 
+
 function Legend() {
   return (
     <div
@@ -131,46 +130,32 @@ function Legend() {
     >
       <div style={{ fontWeight: "bold", marginBottom: "6px" }}>Map Legend</div>
 
-      <div className="legend-item" style={{ marginBottom: "6px" }}>
-        <div
-          style={{
-            width: "15px",
-            height: "15px",
-            background: "red",
-            marginRight: "8px",
-          }}
-        ></div>
+      <div style={{ marginBottom: "6px", display: "flex", alignItems: "center" }}>
+        <div style={{ width: 15, height: 15, background: "red", marginRight: 8 }}></div>
         Luas Red Line
       </div>
 
-      <div className="legend-item" style={{ marginBottom: "6px" }}>
-        <div
-          style={{
-            width: "15px",
-            height: "15px",
-            background: "green",
-            marginRight: "8px",
-          }}
-        ></div>
+      <div style={{ marginBottom: "6px", display: "flex", alignItems: "center" }}>
+        <div style={{ width: 15, height: 15, background: "green", marginRight: 8 }}></div>
         Luas Green Line
       </div>
 
-      <div className="legend-item" style={{ marginBottom: "6px" }}>
+      <div style={{ marginBottom: "6px", display: "flex", alignItems: "center" }}>
         <img
-          src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png"
+          src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-orange.png" //[2]
           width="14"
           alt=""
-          style={{ marginRight: "6px" }}
+          style={{ marginRight: 6 }}
         />
         Deloitte Offices
       </div>
 
-      <div className="legend-item">
+      <div style={{ display: "flex", alignItems: "center" }}>
         <img
-          src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png"
+          src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png" //[2]
           width="14"
           alt=""
-          style={{ marginRight: "6px" }}
+          style={{ marginRight: 6 }}
         />
         Employee Meetup Points
       </div>
@@ -178,49 +163,49 @@ function Legend() {
   );
 }
 
-// ----------------------------------------------------
-// MAIN MAP COMPONENT
-// ----------------------------------------------------
+
+// Main map component 
+// this renders deloitte polyon,office markers,luas routes
+// renderd employee meetup markers based on commute prfiles table coming from backend 
+
 export default function MapSelector({ commuteProfiles }) {
   return (
     <MapContainer
-      center={[53.3498, -6.2603]}
-      zoom={12}
+      center={[53.3341, -6.2595]}
+      zoom={16}
       style={{ height: "450px", width: "100%", position: "relative" }}
     >
       <TileLayer
-        attribution="&copy; OpenStreetMap contributors"
+        attribution="&copy; OpenStreetMap contributors"  // [5]
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
 
-      {/* LUAS LINES */}
-      <Polyline positions={luasRedLineCoords} color="red" weight={4} />
-      <Polyline positions={luasGreenLineCoords} color="green" weight={4} />
+      {/* highlighted deloitte area */}
+      <Polygon
+        positions={deloittePolygon}
+        pathOptions={{ color: "orange", fillColor: "orange", fillOpacity: 0.25 }}
+      >
+        <Tooltip sticky direction="center" offset={[0, 0]}>
+          <strong>Deloitte Campus</strong>
+        </Tooltip>
+      </Polygon>
 
-      {/* DELOITTE OFFICES */}
+      {/* deloitte ofice pins */}
       {deloitteOffices.map((office, index) => (
-        <Marker
-          key={index}
-          position={office.position}
-          icon={office.image ? officePhotoIcon : officeIcon}
-        >
+        <Marker key={index} position={office.position} icon={officeIcon}>
           <Popup>
             <strong>{office.name}</strong>
             <br />
-            Deloitte Dublin Office
-            <br />
-            {office.image && (
-              <img
-                src={office.image}
-                alt={office.name}
-                style={{ width: "100%", marginTop: "10px", borderRadius: "6px" }}
-              />
-            )}
+            Deloitte Dublin
           </Popup>
         </Marker>
       ))}
 
-      {/* COMMUTE PROFILE PINS */}
+      {/* Luas lines */}
+      <Polyline positions={luasRedLineCoords} color="red" weight={4} />
+      <Polyline positions={luasGreenLineCoords} color="green" weight={4} />
+
+      {/* green employee meet up pins */}
       {commuteProfiles &&
         commuteProfiles.map((p, index) => {
           const coords = meetupLookup[p.MeetupLocation];

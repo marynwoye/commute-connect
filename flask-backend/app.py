@@ -5,7 +5,7 @@
 from flask import Flask, request, jsonify  # Flask is for bulidings APIS
 from flask_cors import CORS                # CORS lets React talk to Flask
 import pymysql   
-from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.security import generate_password_hash, check_password_hash # for my employee login hashed passwords 
 
                           # Connect to MySQL database
 
@@ -145,10 +145,8 @@ def delete_employee(employee_id):
         except:
             pass
 
-# -----------------------------------------
-# COMMUTE PROFILE ROUTES
-# -----------------------------------------
 
+# routes for commute profiles 
 @app.route("/commute-profile", methods=["POST"])
 def create_commute_profile():
     data = request.get_json(force=True)
@@ -191,7 +189,7 @@ def create_commute_profile():
         conn.close()
 
 
-
+# GET all commute profiles - used to show the pins on the map
 @app.route("/commute-profile", methods=["GET"])
 def get_commute_profiles():
     try:
@@ -210,6 +208,7 @@ def get_commute_profiles():
     finally:
         conn.close()
 
+# login routes 
 @app.route("/register", methods=["POST"])
 def register_employee():
     data = request.get_json(force=True)
@@ -225,7 +224,7 @@ def register_employee():
 
     if not (first_name and last_name and email and username and password):
         return jsonify({"error": "Missing required fields"}), 400
-
+# hasehd password for security reasons
     hashed_pw = generate_password_hash(password)
 
     try:
@@ -253,7 +252,7 @@ def register_employee():
 
     finally:
         conn.close()
-
+# POST login validating usernames ans passwords 
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json(force=True)
@@ -293,5 +292,5 @@ def login():
 
 #  RUN 
 if __name__ == "__main__":
-    app.run(debug=True)     # when python app.py is running in my terminal
+    app.run(debug=True)     
                             #this runs and starts bacekend locally 

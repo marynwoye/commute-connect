@@ -15,7 +15,13 @@ Used in the TileLayer of MapSelector.js for map backgrounds.
 
 [7] Coordinates for Dublin ChatGPT Converstaion link https://chatgpt.com/c/690e45cf-58a4-8325-b61b-6c14b4e76b9d
 
-API.JS 
+[8] Usestate React Hook https://react.dev/reference/react/useState 
+
+[9] React Router w3schools https://www.w3schools.com/react/react_router.asp 
+
+[10] StackOverflow. “Pointers on how to use Leaflet's Polyline in ReactJS (React-Leaflet).”
+ https://stackoverflow.com/questions/56327141/pointers-on-how-to-use-leaflets-polyline-in-reactjs-react-leaflet
+
 
 [6] Stack Overflow: Post JSON Data https://stackoverflow.com/questions/29775797/fetch-post-json-data
 I added this example used my own API URLs, but was a starting point for me 
