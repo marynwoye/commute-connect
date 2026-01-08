@@ -64,18 +64,65 @@ export async function getCommuteProfiles() {
 }
 
 // user log in fucntion - sends email and password to flask for validation - not full functional carried forward to iteration 3
-export async function loginUser(data) {
-  try {
-    const res = await fetch("http://127.0.0.1:5000/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
+// Login API function (plain text password MVP)
+export async function loginUser(username, password) {
+  const res = await fetch(`${API_BASE}/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ Username: username, Password: password }),
+  });
 
-    return await res.json();
+  const data = await res.json();
 
-  } catch (err) {
-    return { error: err.message };
+  // if Flask sends an error status, throw so the UI can show it
+  if (!res.ok) {
+    throw new Error(data.error || "Login failed");
   }
+
+  return data; // { EmployeeID, FirstName, LastName }
 }
 
+export async function getCommuteGroups(type) {
+  const url = type
+    ? `${API_BASE}/commute-groups?type=${encodeURIComponent(type)}`
+    : `${API_BASE}/commute-groups`;
+
+  const res = await fetch(url);
+  return res.json();
+}
+
+export async function getGroupMembers(groupId) {
+  const res = await fetch(`${API_BASE}/commute-groups/${groupId}/members`);
+  return res.json();
+}
+
+export async function joinGroup(groupId, employeeId) {
+  const res = await fetch(`${API_BASE}/commute-groups/${groupId}/join`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ EmployeeID: employeeId }),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "Join failed");
+  }
+  return data;
+}
+
+export async function createCommuteGroup(group) {
+  const res = await fetch(`${API_BASE}/commute-groups`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(group),
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "Create group failed");
+  }
+
+  return data; // { message, GroupID }
+}

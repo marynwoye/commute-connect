@@ -22,6 +22,7 @@ Used in the TileLayer of MapSelector.js for map backgrounds.
 [10] StackOverflow. “Pointers on how to use Leaflet's Polyline in ReactJS (React-Leaflet).”
  https://stackoverflow.com/questions/56327141/pointers-on-how-to-use-leaflets-polyline-in-reactjs-react-leaflet
 
+[11] https://react-leaflet.js.org/docs/example-vector-layers/
 
 [6] Stack Overflow: Post JSON Data https://stackoverflow.com/questions/29775797/fetch-post-json-data
 I added this example used my own API URLs, but was a starting point for me 

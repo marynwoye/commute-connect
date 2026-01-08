@@ -1,11 +1,13 @@
 import React, { useState } from "react";
 import { loginUser } from "./api";
 
-export default function LoginForm() {
+export default function LoginForm({ onLogin }) {
   const [form, setForm] = useState({
     Username: "",
     Password: "",
   });
+
+  const [error, setError] = useState("");
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -13,28 +15,55 @@ export default function LoginForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError("");
 
-    const res = await loginUser(form);
+    try {
+      // ✅ call new loginUser function correctly
+      const user = await loginUser(form.Username, form.Password);
 
-    if (res.error) {
-      alert("Login failed: " + res.error);
-    } else {
-      alert("Login successful!");
-      localStorage.setItem("employeeID", res.EmployeeID);
+      // ✅ tell App.js that login succeeded
+      onLogin(user);
+
+    } catch (err) {
+      setError(err.message);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
+    <div style={{ padding: "30px", fontFamily: "Arial" }}>
+      <h1>🚗 Commute & Connect</h1>
       <h2>Login</h2>
 
-      <label>Username</label>
-      <input name="Username" onChange={handleChange} required />
+      <form onSubmit={handleSubmit} style={{ maxWidth: "350px" }}>
+        <div style={{ marginBottom: "10px" }}>
+          <label>Username</label>
+          <input
+            name="Username"
+            value={form.Username}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", padding: "8px" }}
+          />
+        </div>
 
-      <label>Password</label>
-      <input name="Password" type="password" onChange={handleChange} required />
+        <div style={{ marginBottom: "10px" }}>
+          <label>Password</label>
+          <input
+            name="Password"
+            type="password"
+            value={form.Password}
+            onChange={handleChange}
+            required
+            style={{ width: "100%", padding: "8px" }}
+          />
+        </div>
 
-      <button type="submit">Login</button>
-    </form>
+        <button type="submit" style={{ padding: "10px", width: "100%" }}>
+          Login
+        </button>
+
+        {error && <p style={{ marginTop: "10px" }}>{error}</p>}
+      </form>
+    </div>
   );
 }

@@ -5,7 +5,7 @@
 from flask import Flask, request, jsonify  # Flask is for bulidings APIS
 from flask_cors import CORS                # CORS lets React talk to Flask
 import pymysql   
-from werkzeug.security import generate_password_hash, check_password_hash # for my employee login hashed passwords 
+
 
                           # Connect to MySQL database
 
@@ -224,15 +224,14 @@ def register_employee():
 
     if not (first_name and last_name and email and username and password):
         return jsonify({"error": "Missing required fields"}), 400
-# hasehd password for security reasons
-    hashed_pw = generate_password_hash(password)
 
+    conn = None
     try:
         conn = get_conn()
         with conn.cursor() as cur:
             cur.execute("""
                 INSERT INTO Employee
-                (FirstName, LastName, Email, Department, Gender, OfficeAddress, Username, PasswordHash)
+                (FirstName, LastName, Email, Department, Gender, OfficeAddress, Username, Password)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 first_name,
@@ -242,7 +241,7 @@ def register_employee():
                 gender,
                 office_address,
                 username,
-                hashed_pw
+                password
             ))
 
         return jsonify({"message": "Employee registered successfully"}), 201
@@ -251,8 +250,11 @@ def register_employee():
         return jsonify({"error": str(e)}), 500
 
     finally:
-        conn.close()
-# POST login validating usernames ans passwords 
+        if conn:
+            conn.close()
+
+
+# POST login validating usernames and passwords (plain text MVP)
 @app.route("/login", methods=["POST"])
 def login():
     data = request.get_json(force=True)
@@ -263,11 +265,12 @@ def login():
     if not (username and password):
         return jsonify({"error": "Username and password are required"}), 400
 
+    conn = None
     try:
         conn = get_conn()
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT EmployeeID, Username, PasswordHash
+                SELECT EmployeeID, FirstName, LastName, Username, Password
                 FROM Employee
                 WHERE Username = %s
             """, (username,))
@@ -277,17 +280,193 @@ def login():
         if not user:
             return jsonify({"error": "User not found"}), 404
 
-        # check the password
-        if not check_password_hash(user["PasswordHash"], password):
+        # plain text password check (MVP)
+        if user["Password"] != password:
             return jsonify({"error": "Incorrect password"}), 401
 
         return jsonify({
             "message": "Login successful",
-            "EmployeeID": user["EmployeeID"]
+            "EmployeeID": user["EmployeeID"],
+            "FirstName": user["FirstName"],
+            "LastName": user["LastName"]
         }), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.route("/commute-groups", methods=["GET"])
+def get_commute_groups():
+    group_type = request.args.get("type")  # 'carpool', 'walk', 'luas' or None
+
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            if group_type:
+                cur.execute("""
+                    SELECT
+                      g.GroupID, g.GroupType, g.GroupName,
+                      g.MeetPointName, g.MeetLat, g.MeetLng,
+                      g.DaysOfWeek, g.MeetTime, g.MaxMembers,
+                      g.CreatorEmployeeID,
+                      e.FirstName AS CreatorFirstName,
+                      e.LastName AS CreatorLastName,
+                      e.Email AS CreatorEmail
+                    FROM CommuteGroupV2 g
+                    JOIN Employee e ON e.EmployeeID = g.CreatorEmployeeID
+                    WHERE g.GroupType = %s
+                    ORDER BY g.GroupID DESC
+                """, (group_type,))
+            else:
+                cur.execute("""
+                    SELECT
+                      g.GroupID, g.GroupType, g.GroupName,
+                      g.MeetPointName, g.MeetLat, g.MeetLng,
+                      g.DaysOfWeek, g.MeetTime, g.MaxMembers,
+                      g.CreatorEmployeeID,
+                      e.FirstName AS CreatorFirstName,
+                      e.LastName AS CreatorLastName,
+                      e.Email AS CreatorEmail
+                    FROM CommuteGroupV2 g
+                    JOIN Employee e ON e.EmployeeID = g.CreatorEmployeeID
+                    ORDER BY g.GroupID DESC
+                """)
+            groups = cur.fetchall()
+
+            # Add CurrentMembers count
+            for g in groups:
+                cur.execute("SELECT COUNT(*) AS cnt FROM GroupMemberV2 WHERE GroupID=%s", (g["GroupID"],))
+                g["CurrentMembers"] = cur.fetchone()["cnt"]
+
+        return jsonify(groups), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        if conn:
+            conn.close()
+
+@app.route("/commute-groups/<int:group_id>/members", methods=["GET"])
+def get_group_members(group_id):
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            cur.execute("""
+                SELECT e.EmployeeID, e.FirstName, e.LastName, e.Department
+                FROM GroupMemberV2 gm
+                JOIN Employee e ON e.EmployeeID = gm.EmployeeID
+                WHERE gm.GroupID = %s
+                ORDER BY e.LastName, e.FirstName
+            """, (group_id,))
+            members = cur.fetchall()
+
+        return jsonify(members), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        if conn:
+            conn.close()
+
+@app.route("/commute-groups/<int:group_id>/join", methods=["POST"])
+def join_group(group_id):
+    data = request.get_json(force=True)
+    employee_id = data.get("EmployeeID")
+
+    if not employee_id:
+        return jsonify({"error": "EmployeeID is required"}), 400
+
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            # Check group exists
+            cur.execute("SELECT MaxMembers FROM CommuteGroupV2 WHERE GroupID=%s", (group_id,))
+            group = cur.fetchone()
+            if not group:
+                return jsonify({"error": "Group not found"}), 404
+
+            # Check already a member
+            cur.execute("""
+                SELECT 1 FROM GroupMemberV2
+                WHERE GroupID=%s AND EmployeeID=%s
+            """, (group_id, employee_id))
+            if cur.fetchone():
+                return jsonify({"error": "You are already a member of this group"}), 409
+
+            # Check capacity
+            cur.execute("SELECT COUNT(*) AS cnt FROM GroupMemberV2 WHERE GroupID=%s", (group_id,))
+            current = cur.fetchone()["cnt"]
+            if current >= group["MaxMembers"]:
+                return jsonify({"error": "Group is full"}), 409
+
+            # Add member
+            cur.execute("""
+                INSERT INTO GroupMemberV2 (GroupID, EmployeeID)
+                VALUES (%s, %s)
+            """, (group_id, employee_id))
+
+        return jsonify({"message": "Joined group successfully"}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        if conn:
+            conn.close()
+
+@app.route("/commute-groups", methods=["POST"])
+def create_commute_group():
+    data = request.get_json(force=True)
+
+    group_type = data.get("GroupType")          # 'carpool', 'walk', 'luas'
+    group_name = data.get("GroupName")
+    meet_point = data.get("MeetPointName")
+    days = data.get("DaysOfWeek")               # e.g. "Mon,Tue,Thu"
+    meet_time = data.get("MeetTime")            # e.g. "08:10"
+    max_members = data.get("MaxMembers")
+    creator_id = data.get("CreatorEmployeeID")
+
+    # Basic validation
+    if not (group_type and group_name and meet_point and days and meet_time and max_members and creator_id):
+        return jsonify({"error": "Missing required fields"}), 400
+
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            # Insert into CommuteGroupV2 (MeetLat/MeetLng are NULL in Option A)
+            cur.execute("""
+                INSERT INTO CommuteGroupV2
+                (GroupType, GroupName, MeetPointName, MeetLat, MeetLng, DaysOfWeek, MeetTime, MaxMembers, CreatorEmployeeID)
+                VALUES (%s, %s, %s, NULL, NULL, %s, %s, %s, %s)
+            """, (
+                group_type, group_name, meet_point, days, meet_time, int(max_members), int(creator_id)
+            ))
+            new_group_id = cur.lastrowid
+
+            # Add creator as first member
+            cur.execute("""
+                INSERT INTO GroupMemberV2 (GroupID, EmployeeID)
+                VALUES (%s, %s)
+            """, (new_group_id, int(creator_id)))
+
+        return jsonify({"message": "Group created", "GroupID": new_group_id}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        if conn:
+            conn.close()
 
 
 #  RUN 
