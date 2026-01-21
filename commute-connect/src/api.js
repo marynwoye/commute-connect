@@ -1,26 +1,28 @@
+
 // This file handles communication between react frontend n flask backend
-// sends and receives data using HTTP requests 
+// sends and receives data using HTTP requests
 // Stack Overflow post using fetch with Json https://stackoverflow.com/questions/29775797/fetch-post-json-data [6]
-const API_BASE = "http://127.0.0.1:5000";  // where my flask app runs locally atm 
+
+const API_BASE = "http://127.0.0.1:5000"; // where my flask app runs locally atm
 
 // get all employees asks flask for a list of all employees in the database
 export async function getEmployees() {
-  const res = await fetch(`${API_BASE}/employees`);  // send GET request to employees
-  return res.json(); // convert response from JSON to javascript object
+  const res = await fetch(`${API_BASE}/employees`);
+  return res.json();
 }
 
-export async function createEmployee(employee) {  // sends the form data from React to Flask to add a new employee
+export async function createEmployee(employee) {
   const res = await fetch(`${API_BASE}/employees`, {
-    method: "POST", //  creating new data
-    headers: { "Content-Type": "application/json" }, // telling Flask sending JSON data
-    body: JSON.stringify(employee),  // send updated employee data
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(employee),
   });
   return res.json();
 }
 
 export async function deleteEmployee(id) {
-  const res = await fetch(`${API_BASE}/employees/${id}`, { method: "DELETE" });  // removing a record
-  return res.json();  // Get Flasks response as JSON
+  const res = await fetch(`${API_BASE}/employees/${id}`, { method: "DELETE" });
+  return res.json();
 }
 
 export async function updateEmployee(id, employee) {
@@ -32,10 +34,9 @@ export async function updateEmployee(id, employee) {
   return res.json();
 }
 
-
-// Commute profile API funcation
-
-// Creating a commute profile and sending to Flask
+// =====================
+// Commute profile API
+// =====================
 
 export async function createCommuteProfile(profile) {
   console.log("Calling POST /commute-profile");
@@ -56,15 +57,15 @@ export async function createCommuteProfile(profile) {
   return data;
 }
 
-
-// Get all commute profiles to show the pins on map 
 export async function getCommuteProfiles() {
   const res = await fetch(`${API_BASE}/commute-profile`);
   return res.json();
 }
 
-// user log in fucntion - sends email and password to flask for validation - not full functional carried forward to iteration 3
-// Login API function (plain text password MVP)
+// =====================
+// Login API (plain text password MVP)
+// =====================
+
 export async function loginUser(username, password) {
   const res = await fetch(`${API_BASE}/login`, {
     method: "POST",
@@ -74,7 +75,6 @@ export async function loginUser(username, password) {
 
   const data = await res.json();
 
-  // if Flask sends an error status, throw so the UI can show it
   if (!res.ok) {
     throw new Error(data.error || "Login failed");
   }
@@ -82,11 +82,25 @@ export async function loginUser(username, password) {
   return data; // { EmployeeID, FirstName, LastName }
 }
 
-export async function getCommuteGroups(type) {
-  const url = type
-    ? `${API_BASE}/commute-groups?type=${encodeURIComponent(type)}`
-    : `${API_BASE}/commute-groups`;
+// =====================
+// Commute groups API (with filtering)
+// =====================
 
+/**
+ * Fetch commute groups with optional filters.
+ * type: "carpool" | "walk" | "luas"
+ * filters: { gender?: string, department?: string, location?: string }
+ */
+export async function getCommuteGroups(type, filters = {}) {
+  const params = new URLSearchParams();
+
+  if (type) params.append("type", type);
+
+  if (filters.gender) params.append("gender", filters.gender);
+  if (filters.department) params.append("department", filters.department);
+  if (filters.location) params.append("location", filters.location);
+
+  const url = `${API_BASE}/commute-groups?${params.toString()}`;
   const res = await fetch(url);
   return res.json();
 }
@@ -125,4 +139,19 @@ export async function createCommuteGroup(group) {
   }
 
   return data; // { message, GroupID }
+}
+
+export async function leaveGroup(groupId, employeeId) {
+  const res = await fetch(
+    `${API_BASE}/commute-groups/${groupId}/leave?employeeId=${encodeURIComponent(employeeId)}`,
+    { method: "DELETE" }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "Leave failed");
+  }
+
+  return data;
 }
