@@ -2,15 +2,18 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createCommuteGroup } from "./api";
 
-// ✅ styling (reuses your existing form styling + shared page layout)
+// page stylying 
 import "./ui.css";
 import "./CommuteProfileForm.css";
 
 export default function CreateGroupPage() {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // moves to another page after you create a group 
 
-  const savedUser = JSON.parse(localStorage.getItem("user"));
-  const creatorId = savedUser?.EmployeeID;
+// Accessing localStorage was learned from [9]
+// Used to read the loggedin user details
+// so the correct employee ID is used when creating a group 
+  const savedUser = JSON.parse(localStorage.getItem("user"));  // gets logged in user from local storge 
+  const creatorId = savedUser?.EmployeeID;   // loged in employee id used for group creator 
 
   const [form, setForm] = useState({
     GroupType: "carpool",
@@ -21,29 +24,29 @@ export default function CreateGroupPage() {
     MaxMembers: 4,
   });
 
-  const [error, setError] = useState("");
+  const [error, setError] = useState("");  // stores error messages to show on screen 
 
-  function handleChange(e) {
+  function handleChange(e) {  // update form state when user types or selects options 
     setForm({ ...form, [e.target.name]: e.target.value });
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setError("");
+  async function handleSubmit(e) {  // submit form to backend to create a new group
+    e.preventDefault();  // stop page refresh 
+    setError("");   // clears old errors 
 
     try {
-      await createCommuteGroup({
+      await createCommuteGroup({  // sends form data to API including the creator ID
         ...form,
         CreatorEmployeeID: creatorId,
       });
 
       alert("Group created!");
-      navigate("/groups");
+      navigate("/groups");   // go back to the groups page 
     } catch (err) {
-      setError(err.message);
+      setError(err.message);  // shows backend error message
     }
   }
-
+// JSX layout for the create group form 
   return (
     <div className="page-wrapper">
       <div className="page-container">
@@ -53,7 +56,7 @@ export default function CreateGroupPage() {
             <p style={{ textAlign: "center", marginBottom: "20px", color: "#555" }}>
               Fill in the details below to create a new group.
             </p>
-
+            {/* Form submits using handleSubmit */}
             <form onSubmit={handleSubmit}>
               <label>Group Type</label>
               <select
@@ -114,6 +117,7 @@ export default function CreateGroupPage() {
               />
 
               <button type="submit">Create Group</button>
+              {/* Show error message if something goes wrong */}
 
               {error && (
                 <p style={{ marginTop: "10px", color: "red", textAlign: "center" }}>

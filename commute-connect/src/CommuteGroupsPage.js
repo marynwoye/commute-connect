@@ -4,17 +4,21 @@ import { getCommuteGroups, getGroupMembers, joinGroup, leaveGroup } from "./api"
 import "./ui.css";
 import "./CommuteProfileForm.css";
 
+// React useState,useEffect learned from
+// The Net Ninja YouTube tutorial [8]
+// The pattern was adapted to manage UI state, filters, and backend data
+// for the commute groups feature
 export default function CommuteGroupsPage() {
-  const [type, setType] = useState("carpool");
-  const [groups, setGroups] = useState([]);
-  const [expandedGroupId, setExpandedGroupId] = useState(null);
+  const [type, setType] = useState("carpool");  // which commute type tab is selected default being carpool
+  const [groups, setGroups] = useState([]);     // list of groups returned by the backend for the selected type 
+  const [expandedGroupId, setExpandedGroupId] = useState(null);  // stores the group that is expanded 
   const [membersByGroup, setMembersByGroup] = useState({});
 
-  // ✅ filter state
+  // filter values 
   const [genderFilter, setGenderFilter] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
-
+// get the logged in user from localStorage once 
   const savedUser = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("user"));
@@ -22,9 +26,9 @@ export default function CommuteGroupsPage() {
       return null;
     }
   }, []);
-  const employeeId = savedUser?.EmployeeID;
+  const employeeId = savedUser?.EmployeeID;  // logged in employee ID 
 
-  async function refreshGroups(currentType) {
+  async function refreshGroups(currentType) {  // load groups from the backend 
     const data = await getCommuteGroups(currentType, {
       gender: genderFilter,
       department: departmentFilter,
@@ -33,12 +37,16 @@ export default function CommuteGroupsPage() {
     setGroups(Array.isArray(data) ? data : []);
   }
 
-  // ✅ Refresh when type or filters change
+  // Reload groups when type or filters chnage 
+  // This useEffect pattern was learned from a GeeksforGeeks tutorial on fetching data [7]
+ // I adapted it by calling my own backend function refreshGroups
+ // and reloading the data when the commute type or filters change.
+
   useEffect(() => {
     refreshGroups(type);
     setExpandedGroupId(null);
   }, [type, genderFilter, departmentFilter, locationFilter]);
-
+// show or hide group members 
   async function toggleMembers(groupId) {
     if (expandedGroupId === groupId) {
       setExpandedGroupId(null);
@@ -49,7 +57,7 @@ export default function CommuteGroupsPage() {
     const members = await getGroupMembers(groupId);
     setMembersByGroup((prev) => ({ ...prev, [groupId]: members }));
   }
-
+// join a group 
   async function handleJoin(groupId) {
     if (!employeeId) {
       alert("You must be logged in to join a group.");
@@ -70,7 +78,7 @@ export default function CommuteGroupsPage() {
     }
   }
 
-  // ✅ NEW: Leave group handler (added only, nothing removed)
+  //  Leave a group 
   async function handleLeave(groupId) {
     if (!employeeId) {
       alert("You must be logged in to leave a group.");
@@ -87,33 +95,36 @@ export default function CommuteGroupsPage() {
       // refresh list so member counts update
       await refreshGroups(type);
 
-      // refresh members list for this group (if open)
+      // refresh members list for this group if open
       const members = await getGroupMembers(groupId);
       setMembersByGroup((prev) => ({ ...prev, [groupId]: members }));
 
-      // optional: close members panel
+      // close members panel
       setExpandedGroupId(null);
     } catch (e) {
       alert(e.message);
     }
   }
-
+// checking if a group is full 
   function isGroupFull(g) {
     return Number(g.CurrentMembers) >= Number(g.MaxMembers);
   }
-
+// reseting all filters 
+// The filter functionality using state, controlled inputs, and clearing filters
+// was based on a DEV.to article [10]
+// I adapted this approach to filter commute groups by gender, department, and location.
   function clearFilters() {
     setGenderFilter("");
     setDepartmentFilter("");
     setLocationFilter("");
   }
-
+// main page layout container 
   return (
     <div className="page-wrapper">
       <div className="page-container">
         <h2 className="page-title">Commute Groups</h2>
 
-        {/* ✅ Filter box */}
+        {/*  Filter section connected to react state */}
         <div className="card" style={{ marginBottom: 12 }}>
           <div className="card-title" style={{ marginBottom: 10 }}>
             Filter groups
@@ -126,7 +137,7 @@ export default function CommuteGroupsPage() {
               gap: "10px",
             }}
           >
-            {/* Gender */}
+            {/* Gender filter */}
             <div>
               <div className="text-muted" style={{ fontWeight: 700, marginBottom: 6 }}>
                 Gender
@@ -148,7 +159,7 @@ export default function CommuteGroupsPage() {
               </select>
             </div>
 
-            {/* Department */}
+            {/* Department filter */}
             <div>
               <div className="text-muted" style={{ fontWeight: 700, marginBottom: 6 }}>
                 Department
@@ -166,7 +177,7 @@ export default function CommuteGroupsPage() {
               />
             </div>
 
-            {/* Location */}
+            {/* Location filter */}
             <div>
               <div className="text-muted" style={{ fontWeight: 700, marginBottom: 6 }}>
                 Location
@@ -186,17 +197,18 @@ export default function CommuteGroupsPage() {
           </div>
 
           <div className="btn-row">
+          {/* Button to reset all filters */}
             <button className="btn-secondary" onClick={clearFilters}>
               Clear filters
             </button>
           </div>
 
           <div className="text-muted" style={{ marginTop: 8 }}>
-            Tip: department and location filters work as text search.
+            
           </div>
         </div>
 
-        {/* Tabs */}
+        {/* Tabs to switch commute type*/}
         <div className="tabs">
           <button
             className={`tab-btn ${type === "carpool" ? "active" : ""}`}
@@ -230,13 +242,13 @@ export default function CommuteGroupsPage() {
         {groups.map((g) => {
           const full = isGroupFull(g);
 
-          // ✅ NEW: determine membership ONLY if members list for this group is loaded
+          //  determine membership only if members list for this group is loaded
           const loadedMembers = membersByGroup[g.GroupID] || [];
           const isMember = loadedMembers.some((m) => m.EmployeeID === employeeId);
 
           return (
             <div key={g.GroupID} className="card">
-              {/* Top row: title + actions */}
+              {/* Top row title actions */}
               <div className="group-header">
                 <div>
                   <div className="card-title">
@@ -262,7 +274,7 @@ export default function CommuteGroupsPage() {
                     {expandedGroupId === g.GroupID ? "Hide members" : "View members"}
                   </button>
 
-                  {/* ✅ NEW: Leave button shows when members panel is open AND user is a member */}
+                  {/* Leave button shows when members panel is open and user is a member */}
                   {expandedGroupId === g.GroupID && isMember && (
                     <button className="btn-secondary" onClick={() => handleLeave(g.GroupID)}>
                       Leave group
@@ -271,7 +283,7 @@ export default function CommuteGroupsPage() {
                 </div>
               </div>
 
-              {/* Middle info grid */}
+              {/* Middle infomation grid */}
               <div className="group-grid">
                 <div className="text-muted">
                   <strong>Schedule:</strong> {g.DaysOfWeek} • {g.MeetTime}
@@ -284,7 +296,7 @@ export default function CommuteGroupsPage() {
                   <strong>Contact:</strong> {g.CreatorFirstName} {g.CreatorLastName} — {g.CreatorEmail}
                 </div>
 
-                {/* Optional: show creator dept/gender if returned */}
+                {/*  show creator dept/gender if returned */}
                 {(g.CreatorDepartment || g.CreatorGender) && (
                   <div className="text-muted group-contact">
                     <strong>Creator:</strong>{" "}

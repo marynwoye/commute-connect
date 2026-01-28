@@ -18,10 +18,10 @@ export default function LoginForm({ onLogin }) {
     setError("");
 
     try {
-      // ✅ call new loginUser function correctly
+      // call new login user  function correctly
       const user = await loginUser(form.Username, form.Password);
 
-      // ✅ tell App.js that login succeeded
+      
       onLogin(user);
 
     } catch (err) {

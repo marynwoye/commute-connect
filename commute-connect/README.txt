@@ -26,3 +26,19 @@ Used in the TileLayer of MapSelector.js for map backgrounds.
 
 [6] Stack Overflow: Post JSON Data https://stackoverflow.com/questions/29775797/fetch-post-json-data
 I added this example used my own API URLs, but was a starting point for me 
+
+Iteration 3 
+
+[7]GeeksforGeeks Fetching data from an API with useEffect and useState Hook in ReactJS.
+ https://www.geeksforgeeks.org/reactjs/fetching-data-from-an-api-with-useeffect-and-usestate-hook/
+
+ [8]The Net Ninja React Hooks Tutorial – useState & useEffect.
+  https://www.youtube.com/watch?v=j1ZRyw7OtZs
+
+[9] LogRocket Using localStorage with React Hooks. 
+https://blog.logrocket.com/using-localstorage-react-hooks/
+
+[10]Constructing Search Filter Functionality in React. 
+ https://dev.to/laurentyson85/constructing-search-filter-functionality-in-react-dnd
+
+ 

@@ -30,9 +30,9 @@ def get_conn():
     return pymysql.connect(**DB_CONFIG)
 
 
-# =========================
+
 # EMPLOYEE CRUD
-# =========================
+
 
 @app.route("/employees", methods=["POST"])
 def create_employee():
@@ -75,7 +75,7 @@ def get_employees():
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            # ✅ FIX: use Password not PasswordHash
+            #  use Password 
             cur.execute("""
                 SELECT EmployeeID, FirstName, LastName, Email, Department, Gender, Location,
                        OfficeAddress, Username, Password
@@ -152,9 +152,9 @@ def delete_employee(employee_id):
             conn.close()
 
 
-# =========================
+
 # COMMUTE PROFILES
-# =========================
+
 
 @app.route("/commute-profile", methods=["POST"])
 def create_commute_profile():
@@ -214,9 +214,6 @@ def get_commute_profiles():
             conn.close()
 
 
-# =========================
-# AUTH (plain text MVP)
-# =========================
 
 @app.route("/register", methods=["POST"])
 def register_employee():
@@ -296,15 +293,14 @@ def login():
             conn.close()
 
 
-# =========================
-# COMMUTE GROUPS (V2) + FILTERING
-# =========================
+
+# COMMUTE GROUPS 
 
 @app.route("/commute-groups", methods=["GET"])
 def get_commute_groups():
     group_type = request.args.get("type")          # carpool / walk / luas
     gender = request.args.get("gender")            # Male / Female / Other
-    department = request.args.get("department")    # IT / Audit / etc.
+    department = request.args.get("department")    # IT / Audit 
     location_q = request.args.get("location")      # text search in MeetPointName
 
     conn = None
@@ -493,7 +489,7 @@ def leave_group(group_id):
             if not cur.fetchone():
                 return jsonify({"error": "You are not a member of this group"}), 404
 
-            # Prevent creator leaving their own group (optional rule)
+            # Prevents creator leaving their own group 
             cur.execute("""
                 SELECT CreatorEmployeeID FROM CommuteGroupV2
                 WHERE GroupID=%s
