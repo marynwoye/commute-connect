@@ -5,6 +5,8 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pymysql
+import os
+
 
 app = Flask(__name__)
 CORS(app)
@@ -17,13 +19,15 @@ def health_check():
 
 # MySQL connection settings
 DB_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "Nwoye2025",
-    "database": "commute_connect_v2",
+    "host": os.environ.get("MYSQLHOST", "localhost"),
+    "user": os.environ.get("MYSQLUSER", "root"),
+    "password": os.environ.get("MYSQLPASSWORD", "Nwoye2025"),
+    "database": os.environ.get("MYSQLDATABASE", "commute_connect_v2"),
+    "port": int(os.environ.get("MYSQLPORT", "3306")),
     "cursorclass": pymysql.cursors.DictCursor,
     "autocommit": True
 }
+
 
 def get_conn():
     """Create a new DB connection."""
