@@ -7,7 +7,6 @@ from flask_cors import CORS
 import pymysql
 import os
 
-
 app = Flask(__name__)
 CORS(app)
 
@@ -17,13 +16,18 @@ def health_check():
     return jsonify({"status": "ok"})
 
 
+def env(name: str, default: str = "") -> str:
+    """Read env var safely (strips whitespace/newlines)."""
+    return os.environ.get(name, default).strip()
+
+
 # MySQL connection settings
 DB_CONFIG = {
-    "host": os.environ.get("MYSQLHOST", "localhost"),
-    "user": os.environ.get("MYSQLUSER", "root"),
-    "password": os.environ.get("MYSQLPASSWORD", "Nwoye2025"),
-    "database": os.environ.get("MYSQLDATABASE", "commute_connect_v2"),
-    "port": int(os.environ.get("MYSQLPORT", "3306")),
+    "host": env("MYSQLHOST", "localhost"),
+    "user": env("MYSQLUSER", "root"),
+    "password": env("MYSQLPASSWORD", "Nwoye2025"),
+    "database": env("MYSQLDATABASE", "commute_connect_v2"),
+    "port": int(env("MYSQLPORT", "3306")),
     "cursorclass": pymysql.cursors.DictCursor,
     "autocommit": True
 }
@@ -34,9 +38,7 @@ def get_conn():
     return pymysql.connect(**DB_CONFIG)
 
 
-
 # EMPLOYEE CRUD
-
 
 @app.route("/employees", methods=["POST"])
 def create_employee():
@@ -58,7 +60,7 @@ def create_employee():
         conn = get_conn()
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO Employee (FirstName, LastName, Email, Department, Gender, Location, OfficeAddress)
+                INSERT INTO employee (FirstName, LastName, Email, Department, Gender, Location, OfficeAddress)
                 VALUES (%s, %s, %s, %s, %s, %s, %s)
             """, (first_name, last_name, email, department, gender, location, office_address))
             new_id = cur.lastrowid
@@ -79,11 +81,10 @@ def get_employees():
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            #  use Password 
             cur.execute("""
                 SELECT EmployeeID, FirstName, LastName, Email, Department, Gender, Location,
                        OfficeAddress, Username, Password
-                FROM Employee
+                FROM employee
                 ORDER BY EmployeeID DESC
             """)
             rows = cur.fetchall()
@@ -115,7 +116,7 @@ def update_employee(employee_id):
         conn = get_conn()
         with conn.cursor() as cur:
             cur.execute("""
-                UPDATE Employee
+                UPDATE employee
                 SET FirstName=%s, LastName=%s, Department=%s, Location=%s
                 WHERE EmployeeID=%s
             """, (first_name, last_name, department, location, employee_id))
@@ -140,7 +141,7 @@ def delete_employee(employee_id):
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            cur.execute("DELETE FROM Employee WHERE EmployeeID=%s", (employee_id,))
+            cur.execute("DELETE FROM employee WHERE EmployeeID=%s", (employee_id,))
             affected = cur.rowcount
 
         if affected == 0:
@@ -156,9 +157,7 @@ def delete_employee(employee_id):
             conn.close()
 
 
-
 # COMMUTE PROFILES
-
 
 @app.route("/commute-profile", methods=["POST"])
 def create_commute_profile():
@@ -179,7 +178,7 @@ def create_commute_profile():
         conn = get_conn()
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO CommuteProfile
+                INSERT INTO commuteprofile
                 (FirstName, Department, Gender, WorkHours, TransportPreference, MeetupLocation)
                 VALUES (%s, %s, %s, %s, %s, %s)
             """, (first_name, department, gender, work_hours, transport_pref, meetup_location))
@@ -203,7 +202,7 @@ def get_commute_profiles():
         conn = get_conn()
         with conn.cursor() as cur:
             cur.execute("""
-                SELECT * FROM CommuteProfile
+                SELECT * FROM commuteprofile
                 ORDER BY ProfileID DESC
             """)
             rows = cur.fetchall()
@@ -216,7 +215,6 @@ def get_commute_profiles():
     finally:
         if conn:
             conn.close()
-
 
 
 @app.route("/register", methods=["POST"])
@@ -240,7 +238,7 @@ def register_employee():
         conn = get_conn()
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO Employee
+                INSERT INTO employee
                 (FirstName, LastName, Email, Department, Gender, OfficeAddress, Username, Password)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             """, (first_name, last_name, email, department, gender, office_address, username, password))
@@ -271,7 +269,7 @@ def login():
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT EmployeeID, FirstName, LastName, Username, Password
-                FROM Employee
+                FROM employee
                 WHERE Username = %s
             """, (username,))
             user = cur.fetchone()
@@ -297,14 +295,13 @@ def login():
             conn.close()
 
 
-
-# COMMUTE GROUPS 
+# COMMUTE GROUPS
 
 @app.route("/commute-groups", methods=["GET"])
 def get_commute_groups():
     group_type = request.args.get("type")          # carpool / walk / luas
     gender = request.args.get("gender")            # Male / Female / Other
-    department = request.args.get("department")    # IT / Audit 
+    department = request.args.get("department")    # IT / Audit
     location_q = request.args.get("location")      # text search in MeetPointName
 
     conn = None
@@ -322,8 +319,8 @@ def get_commute_groups():
                   e.Email AS CreatorEmail,
                   e.Gender AS CreatorGender,
                   e.Department AS CreatorDepartment
-                FROM CommuteGroupV2 g
-                JOIN Employee e ON e.EmployeeID = g.CreatorEmployeeID
+                FROM commutegroupv2 g
+                JOIN employee e ON e.EmployeeID = g.CreatorEmployeeID
                 WHERE 1=1
             """
             params = []
@@ -350,7 +347,7 @@ def get_commute_groups():
             groups = cur.fetchall()
 
             for g in groups:
-                cur.execute("SELECT COUNT(*) AS cnt FROM GroupMemberV2 WHERE GroupID=%s", (g["GroupID"],))
+                cur.execute("SELECT COUNT(*) AS cnt FROM groupmemberv2 WHERE GroupID=%s", (g["GroupID"],))
                 g["CurrentMembers"] = cur.fetchone()["cnt"]
 
         return jsonify(groups), 200
@@ -371,8 +368,8 @@ def get_group_members(group_id):
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT e.EmployeeID, e.FirstName, e.LastName, e.Department
-                FROM GroupMemberV2 gm
-                JOIN Employee e ON e.EmployeeID = gm.EmployeeID
+                FROM groupmemberv2 gm
+                JOIN employee e ON e.EmployeeID = gm.EmployeeID
                 WHERE gm.GroupID = %s
                 ORDER BY e.LastName, e.FirstName
             """, (group_id,))
@@ -400,25 +397,25 @@ def join_group(group_id):
     try:
         conn = get_conn()
         with conn.cursor() as cur:
-            cur.execute("SELECT MaxMembers FROM CommuteGroupV2 WHERE GroupID=%s", (group_id,))
+            cur.execute("SELECT MaxMembers FROM commutegroupv2 WHERE GroupID=%s", (group_id,))
             group = cur.fetchone()
             if not group:
                 return jsonify({"error": "Group not found"}), 404
 
             cur.execute("""
-                SELECT 1 FROM GroupMemberV2
+                SELECT 1 FROM groupmemberv2
                 WHERE GroupID=%s AND EmployeeID=%s
             """, (group_id, employee_id))
             if cur.fetchone():
                 return jsonify({"error": "You are already a member of this group"}), 409
 
-            cur.execute("SELECT COUNT(*) AS cnt FROM GroupMemberV2 WHERE GroupID=%s", (group_id,))
+            cur.execute("SELECT COUNT(*) AS cnt FROM groupmemberv2 WHERE GroupID=%s", (group_id,))
             current = cur.fetchone()["cnt"]
             if current >= group["MaxMembers"]:
                 return jsonify({"error": "Group is full"}), 409
 
             cur.execute("""
-                INSERT INTO GroupMemberV2 (GroupID, EmployeeID)
+                INSERT INTO groupmemberv2 (GroupID, EmployeeID)
                 VALUES (%s, %s)
             """, (group_id, employee_id))
 
@@ -452,7 +449,7 @@ def create_commute_group():
         conn = get_conn()
         with conn.cursor() as cur:
             cur.execute("""
-                INSERT INTO CommuteGroupV2
+                INSERT INTO commutegroupv2
                 (GroupType, GroupName, MeetPointName, MeetLat, MeetLng, DaysOfWeek, MeetTime, MaxMembers, CreatorEmployeeID)
                 VALUES (%s, %s, %s, NULL, NULL, %s, %s, %s, %s)
             """, (group_type, group_name, meet_point, days, meet_time, int(max_members), int(creator_id)))
@@ -460,7 +457,7 @@ def create_commute_group():
             new_group_id = cur.lastrowid
 
             cur.execute("""
-                INSERT INTO GroupMemberV2 (GroupID, EmployeeID)
+                INSERT INTO groupmemberv2 (GroupID, EmployeeID)
                 VALUES (%s, %s)
             """, (new_group_id, int(creator_id)))
 
@@ -487,15 +484,15 @@ def leave_group(group_id):
         with conn.cursor() as cur:
             # Check membership exists
             cur.execute("""
-                SELECT 1 FROM GroupMemberV2
+                SELECT 1 FROM groupmemberv2
                 WHERE GroupID=%s AND EmployeeID=%s
             """, (group_id, employee_id))
             if not cur.fetchone():
                 return jsonify({"error": "You are not a member of this group"}), 404
 
-            # Prevents creator leaving their own group 
+            # Prevent creator leaving their own group
             cur.execute("""
-                SELECT CreatorEmployeeID FROM CommuteGroupV2
+                SELECT CreatorEmployeeID FROM commutegroupv2
                 WHERE GroupID=%s
             """, (group_id,))
             group = cur.fetchone()
@@ -504,7 +501,7 @@ def leave_group(group_id):
 
             # Delete membership
             cur.execute("""
-                DELETE FROM GroupMemberV2
+                DELETE FROM groupmemberv2
                 WHERE GroupID=%s AND EmployeeID=%s
             """, (group_id, employee_id))
 
@@ -519,4 +516,6 @@ def leave_group(group_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    # Railway provides PORT. Locally it defaults to 5000.
+    port = int(os.environ.get("PORT", "5000"))
+    app.run(host="0.0.0.0", port=port, debug=True)
