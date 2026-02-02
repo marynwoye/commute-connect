@@ -3,7 +3,9 @@
 // sends and receives data using HTTP requests
 // Stack Overflow post using fetch with Json https://stackoverflow.com/questions/29775797/fetch-post-json-data [6]
 
-const API_BASE = "http://127.0.0.1:5000"; // where my flask app runs locally atm
+const API_BASE =
+  process.env.REACT_APP_API_BASE || "http://127.0.0.1:5000"; // Vercel uses env var, local uses localhost
+ // where my flask app runs locally atm
 
 // get all employees asks flask for a list of all employees in the database
 export async function getEmployees() {
