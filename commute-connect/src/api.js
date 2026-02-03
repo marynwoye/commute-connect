@@ -157,3 +157,36 @@ export async function leaveGroup(groupId, employeeId) {
 
   return data;
 }
+
+
+export async function updateCommuteGroup(groupId, group, employeeId) {
+  const res = await fetch(
+    `${API_BASE}/commute-groups/${groupId}?employeeId=${encodeURIComponent(employeeId)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(group),
+    }
+  );
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    throw new Error(data.error || "Update group failed");
+  }
+
+  return data;
+}
+
+
+
+
+export async function deleteCommuteGroup(groupId, employeeId) {
+  const res = await fetch(`${API_BASE}/commute-groups/${groupId}?employeeId=${encodeURIComponent(employeeId)}`, {
+    method: "DELETE",
+  });
+
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || "Delete failed");
+  return data;
+}

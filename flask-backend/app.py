@@ -515,6 +515,82 @@ def leave_group(group_id):
             conn.close()
 
 
+@app.route("/commute-groups/<int:group_id>", methods=["PUT"])
+def update_commute_group(group_id):
+    data = request.get_json(force=True)
+    employee_id = request.args.get("employeeId")
+
+    if not employee_id:
+        return jsonify({"error": "employeeId is required"}), 400
+
+    allowed_fields = ["GroupName", "MeetPointName", "DaysOfWeek", "MeetTime", "MaxMembers"]
+    updates = {k: data.get(k) for k in allowed_fields if k in data}
+
+    if not updates:
+        return jsonify({"error": "No valid fields provided"}), 400
+
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            # Only creator can edit
+            cur.execute("SELECT CreatorEmployeeID FROM commutegroupv2 WHERE GroupID=%s", (group_id,))
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"error": "Group not found"}), 404
+
+            if str(row["CreatorEmployeeID"]) != str(employee_id):
+                return jsonify({"error": "Not authorized"}), 403
+
+            set_clause = ", ".join([f"{k}=%s" for k in updates.keys()])
+            params = list(updates.values()) + [group_id]
+
+            cur.execute(f"UPDATE commutegroupv2 SET {set_clause} WHERE GroupID=%s", params)
+
+        return jsonify({"message": "Group updated"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.route("/commute-groups/<int:group_id>", methods=["DELETE"])
+def delete_commute_group(group_id):
+    employee_id = request.args.get("employeeId")
+    if not employee_id:
+        return jsonify({"error": "employeeId is required"}), 400
+
+    conn = None
+    try:
+        conn = get_conn()
+        with conn.cursor() as cur:
+            cur.execute("SELECT CreatorEmployeeID FROM commutegroupv2 WHERE GroupID=%s", (group_id,))
+            row = cur.fetchone()
+            if not row:
+                return jsonify({"error": "Group not found"}), 404
+
+            if str(row["CreatorEmployeeID"]) != str(employee_id):
+                return jsonify({"error": "Not authorized"}), 403
+
+            # delete memberships first
+            cur.execute("DELETE FROM groupmemberv2 WHERE GroupID=%s", (group_id,))
+            # delete group
+            cur.execute("DELETE FROM commutegroupv2 WHERE GroupID=%s", (group_id,))
+
+        return jsonify({"message": "Group deleted"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        if conn:
+            conn.close()
+
+
+
 if __name__ == "__main__":
     # Railway provides PORT. Locally it defaults to 5000.
     port = int(os.environ.get("PORT", "5000"))
