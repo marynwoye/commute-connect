@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   getCommuteGroups,
   getGroupMembers,
@@ -6,6 +6,7 @@ import {
   leaveGroup,
   updateCommuteGroup,
   deleteCommuteGroup,
+  getCommuteProfiles, // ✅ AI uses this existing endpoint
 } from "./api";
 
 import "./ui.css";
@@ -26,6 +27,15 @@ export default function CommuteGroupsPage() {
   const [departmentFilter, setDepartmentFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
 
+  // ✅ AI recommendation state
+  const [myProfile, setMyProfile] = useState(null);
+
+  // ✅ UI: show/hide compact AI panel (default closed)
+  const [showRecommendations, setShowRecommendations] = useState(false);
+
+  // ✅ Jump-to-group refs
+  const groupRefs = useRef({});
+
   // get the logged in user from localStorage once
   const savedUser = useMemo(() => {
     try {
@@ -35,6 +45,7 @@ export default function CommuteGroupsPage() {
     }
   }, []);
   const employeeId = savedUser?.EmployeeID; // logged in employee ID
+  const loggedInFirstName = savedUser?.FirstName || ""; // ✅ AI uses this to match profile
 
   // =====================
   // Edit/Delete group state
@@ -62,13 +73,42 @@ export default function CommuteGroupsPage() {
   // This useEffect pattern was learned from a GeeksforGeeks tutorial on fetching data [7]
   // I adapted it by calling my own backend function refreshGroups
   // and reloading the data when the commute type or filters change.
-
   useEffect(() => {
     refreshGroups(type);
     setExpandedGroupId(null);
     // close edit form if user changes tabs/filters
     setEditingGroupId(null);
   }, [type, genderFilter, departmentFilter, locationFilter]);
+
+  // ✅ AI: load commute profiles and match one for the logged-in user by FirstName (demo approach)
+  useEffect(() => {
+    async function loadMyProfile() {
+      if (!loggedInFirstName) {
+        setMyProfile(null);
+        return;
+      }
+
+      try {
+        const profiles = await getCommuteProfiles();
+        const list = Array.isArray(profiles) ? profiles : [];
+
+        // Match by FirstName (demo only — no DB change required)
+        const matches = list.filter(
+          (p) =>
+            (p.FirstName || "").trim().toLowerCase() ===
+            loggedInFirstName.trim().toLowerCase()
+        );
+
+        // If multiple profiles match, choose newest
+        matches.sort((a, b) => Number(b.ProfileID || 0) - Number(a.ProfileID || 0));
+        setMyProfile(matches[0] || null);
+      } catch (e) {
+        setMyProfile(null);
+      }
+    }
+
+    loadMyProfile();
+  }, [loggedInFirstName]);
 
   // show or hide group members
   async function toggleMembers(groupId) {
@@ -80,6 +120,30 @@ export default function CommuteGroupsPage() {
 
     const members = await getGroupMembers(groupId);
     setMembersByGroup((prev) => ({ ...prev, [groupId]: members }));
+  }
+
+  // ✅ Jump from a recommended group to the real group card
+  function openRecommendedGroup(g) {
+    const targetType = (g.GroupType || "").toLowerCase();
+
+    // Switch tab if needed (this triggers refreshGroups via useEffect)
+    if (targetType && targetType !== type) {
+      setType(targetType);
+    }
+
+    // Close the recommendations panel (optional but feels nice)
+    setShowRecommendations(false);
+
+    // Scroll after render/refresh
+    setTimeout(() => {
+      const el = groupRefs.current[g.GroupID];
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
+      // OPTIONAL: auto-open members when you jump
+      // toggleMembers(g.GroupID);
+    }, 250);
   }
 
   // join a group
@@ -207,11 +271,219 @@ export default function CommuteGroupsPage() {
     setLocationFilter("");
   }
 
+  // ==========================
+  // ✅ AI: Rule-based scoring
+  // ==========================
+  function normalize(s) {
+    return (s || "").toString().trim().toLowerCase();
+  }
+
+  function scoreGroupForProfile(group, profile) {
+    if (!profile) return 0;
+
+    let score = 0;
+
+    const profileDept = normalize(profile.Department);
+    const profileGender = normalize(profile.Gender);
+    const profileMeetup = normalize(profile.MeetupLocation);
+    const profileTransport = normalize(profile.TransportPreference);
+
+    const creatorDept = normalize(group.CreatorDepartment);
+    const creatorGender = normalize(group.CreatorGender);
+    const meetPoint = normalize(group.MeetPointName);
+    const groupType = normalize(group.GroupType);
+
+    // Department match
+    if (profileDept && creatorDept && profileDept === creatorDept) score += 3;
+
+    // Meetup location match (contains)
+    if (profileMeetup && meetPoint && meetPoint.includes(profileMeetup)) score += 4;
+
+    // Gender match (optional)
+    if (profileGender && creatorGender && profileGender === creatorGender) score += 1;
+
+    // Transport preference match to group type
+    if (profileTransport && groupType && groupType.includes(profileTransport)) score += 2;
+
+    return score;
+  }
+
+  // ✅ AI: calculate top 3 recommended groups from the currently loaded groups list
+  const recommended = useMemo(() => {
+    if (!myProfile || !Array.isArray(groups) || groups.length === 0) return [];
+
+    const scored = groups
+      .map((g) => ({ group: g, score: scoreGroupForProfile(g, myProfile) }))
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 3);
+
+    return scored;
+  }, [groups, myProfile]);
+
   // main page layout container
   return (
     <div className="page-wrapper">
       <div className="page-container">
         <h2 className="page-title">Commute Groups</h2>
+
+        {/* ✅ AI Recommended section (compact + toggle, clickable recommendations) */}
+        <div
+          className="card"
+          style={{
+            marginBottom: 12,
+            padding: "10px 12px",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 10,
+            }}
+          >
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontWeight: 700,
+                  lineHeight: 1.2,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                }}
+              >
+                <span aria-hidden="true">⭐</span>
+                <span>AI recommendations</span>
+              </div>
+
+              {/* Small, one-line context (kept subtle) */}
+              {savedUser && myProfile ? (
+                <div
+                  className="text-muted"
+                  style={{
+                    fontSize: 12,
+                    marginTop: 2,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                  title={`Based on: ${myProfile.Department}, meetup: ${myProfile.MeetupLocation}`}
+                >
+                  Based on: <strong>{myProfile.Department}</strong> • Meetup:{" "}
+                  <strong>{myProfile.MeetupLocation}</strong>
+                </div>
+              ) : (
+                <div className="text-muted" style={{ fontSize: 12, marginTop: 2 }}>
+                  Personalised suggestions (optional)
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowRecommendations((p) => !p)}
+              style={{
+                padding: "8px 10px",
+                borderRadius: 10,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {showRecommendations ? "Hide" : "Show"}
+            </button>
+          </div>
+
+          {showRecommendations && (
+            <div
+              style={{
+                marginTop: 10,
+                borderTop: "1px solid rgba(0,0,0,0.08)",
+                paddingTop: 10,
+                maxHeight: 230,
+                overflowY: "auto",
+              }}
+            >
+              {!savedUser && (
+                <div className="text-muted" style={{ fontSize: 13 }}>
+                  Log in to see recommendations.
+                </div>
+              )}
+
+              {savedUser && !myProfile && (
+                <div className="text-muted" style={{ fontSize: 13 }}>
+                  No commute profile found for <strong>{savedUser?.FirstName}</strong>. Create
+                  your commute profile to see recommendations.
+                </div>
+              )}
+
+              {savedUser && myProfile && recommended.length === 0 && (
+                <div className="text-muted" style={{ fontSize: 13 }}>
+                  No strong matches found yet. Try creating more groups or adjust meetup
+                  locations/departments.
+                </div>
+              )}
+
+              {savedUser && myProfile && recommended.length > 0 && (
+                <div style={{ display: "grid", gap: 8 }}>
+                  {recommended.map(({ group: g, score }) => (
+                    <div
+                      key={`rec-${g.GroupID}`}
+                      onClick={() => openRecommendedGroup(g)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") openRecommendedGroup(g);
+                      }}
+                      style={{
+                        border: "1px solid rgba(0,0,0,0.08)",
+                        borderRadius: 12,
+                        padding: 10,
+                        background: "rgba(0,0,0,0.01)",
+                        cursor: "pointer",
+                      }}
+                      title="Click to jump to this group"
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 8,
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            maxWidth: "75%",
+                          }}
+                          title={g.GroupName}
+                        >
+                          {g.GroupName}{" "}
+                          <span className="badge">{g.GroupType.toUpperCase()}</span>
+                        </div>
+
+                        <span className="text-muted" style={{ fontSize: 12 }}>
+                          Score: {score}
+                        </span>
+                      </div>
+
+                      <div className="text-muted" style={{ fontSize: 13, marginTop: 4 }}>
+                        <strong>Meet:</strong> {g.MeetPointName}
+                      </div>
+                      <div className="text-muted" style={{ fontSize: 13 }}>
+                        <strong>Time:</strong> {g.DaysOfWeek} • {g.MeetTime}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
 
         {/*  Filter section connected to react state */}
         <div className="card" style={{ marginBottom: 12 }}>
@@ -228,10 +500,7 @@ export default function CommuteGroupsPage() {
           >
             {/* Gender filter */}
             <div>
-              <div
-                className="text-muted"
-                style={{ fontWeight: 700, marginBottom: 6 }}
-              >
+              <div className="text-muted" style={{ fontWeight: 700, marginBottom: 6 }}>
                 Gender
               </div>
               <select
@@ -253,10 +522,7 @@ export default function CommuteGroupsPage() {
 
             {/* Department filter */}
             <div>
-              <div
-                className="text-muted"
-                style={{ fontWeight: 700, marginBottom: 6 }}
-              >
+              <div className="text-muted" style={{ fontWeight: 700, marginBottom: 6 }}>
                 Department
               </div>
               <input
@@ -274,10 +540,7 @@ export default function CommuteGroupsPage() {
 
             {/* Location filter */}
             <div>
-              <div
-                className="text-muted"
-                style={{ fontWeight: 700, marginBottom: 6 }}
-              >
+              <div className="text-muted" style={{ fontWeight: 700, marginBottom: 6 }}>
                 Location
               </div>
               <input
@@ -329,9 +592,7 @@ export default function CommuteGroupsPage() {
         {groups.length === 0 && (
           <div className="card">
             <div className="card-title">No groups available</div>
-            <div className="text-muted">
-              Try another commute type or change your filters.
-            </div>
+            <div className="text-muted">Try another commute type or change your filters.</div>
           </div>
         )}
 
@@ -346,7 +607,13 @@ export default function CommuteGroupsPage() {
           const isCreator = String(g.CreatorEmployeeID) === String(employeeId);
 
           return (
-            <div key={g.GroupID} className="card">
+            <div
+              key={g.GroupID}
+              className="card"
+              ref={(el) => {
+                if (el) groupRefs.current[g.GroupID] = el;
+              }}
+            >
               {/* Top row title actions */}
               <div className="group-header">
                 <div>
@@ -359,10 +626,7 @@ export default function CommuteGroupsPage() {
                   </div>
                 </div>
 
-                <div
-                  className="btn-row"
-                  style={{ justifyContent: "flex-end", marginTop: 0 }}
-                >
+                <div className="btn-row" style={{ justifyContent: "flex-end", marginTop: 0 }}>
                   <button
                     className="btn-primary"
                     onClick={() => handleJoin(g.GroupID)}
@@ -389,10 +653,7 @@ export default function CommuteGroupsPage() {
                       <button className="btn-secondary" onClick={() => startEditGroup(g)}>
                         Edit
                       </button>
-                      <button
-                        className="btn-secondary"
-                        onClick={() => handleDeleteGroup(g.GroupID)}
-                      >
+                      <button className="btn-secondary" onClick={() => handleDeleteGroup(g.GroupID)}>
                         Delete
                       </button>
                     </>
@@ -410,8 +671,7 @@ export default function CommuteGroupsPage() {
                   {full ? <span className="danger">(Full)</span> : null}
                 </div>
                 <div className="text-muted group-contact">
-                  <strong>Contact:</strong> {g.CreatorFirstName} {g.CreatorLastName} —{" "}
-                  {g.CreatorEmail}
+                  <strong>Contact:</strong> {g.CreatorFirstName} {g.CreatorLastName} — {g.CreatorEmail}
                 </div>
 
                 {/*  show creator dept/gender if returned */}
@@ -432,24 +692,12 @@ export default function CommuteGroupsPage() {
                     Edit group
                   </div>
 
-                  <div
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "1fr 1fr",
-                      gap: "10px",
-                    }}
-                  >
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                     <input
                       value={editForm.GroupName}
-                      onChange={(e) =>
-                        setEditForm((p) => ({ ...p, GroupName: e.target.value }))
-                      }
+                      onChange={(e) => setEditForm((p) => ({ ...p, GroupName: e.target.value }))}
                       placeholder="Group name"
-                      style={{
-                        padding: "12px",
-                        borderRadius: "10px",
-                        border: "1px solid #ccc",
-                      }}
+                      style={{ padding: "12px", borderRadius: "10px", border: "1px solid #ccc" }}
                     />
 
                     <input
@@ -458,50 +706,28 @@ export default function CommuteGroupsPage() {
                         setEditForm((p) => ({ ...p, MeetPointName: e.target.value }))
                       }
                       placeholder="Meet point name"
-                      style={{
-                        padding: "12px",
-                        borderRadius: "10px",
-                        border: "1px solid #ccc",
-                      }}
+                      style={{ padding: "12px", borderRadius: "10px", border: "1px solid #ccc" }}
                     />
 
                     <input
                       value={editForm.DaysOfWeek}
-                      onChange={(e) =>
-                        setEditForm((p) => ({ ...p, DaysOfWeek: e.target.value }))
-                      }
+                      onChange={(e) => setEditForm((p) => ({ ...p, DaysOfWeek: e.target.value }))}
                       placeholder="Days of week (e.g. Mon, Wed)"
-                      style={{
-                        padding: "12px",
-                        borderRadius: "10px",
-                        border: "1px solid #ccc",
-                      }}
+                      style={{ padding: "12px", borderRadius: "10px", border: "1px solid #ccc" }}
                     />
 
                     <input
                       value={editForm.MeetTime}
-                      onChange={(e) =>
-                        setEditForm((p) => ({ ...p, MeetTime: e.target.value }))
-                      }
+                      onChange={(e) => setEditForm((p) => ({ ...p, MeetTime: e.target.value }))}
                       placeholder="Meet time (e.g. 08:00)"
-                      style={{
-                        padding: "12px",
-                        borderRadius: "10px",
-                        border: "1px solid #ccc",
-                      }}
+                      style={{ padding: "12px", borderRadius: "10px", border: "1px solid #ccc" }}
                     />
 
                     <input
                       value={editForm.MaxMembers}
-                      onChange={(e) =>
-                        setEditForm((p) => ({ ...p, MaxMembers: e.target.value }))
-                      }
+                      onChange={(e) => setEditForm((p) => ({ ...p, MaxMembers: e.target.value }))}
                       placeholder="Max members"
-                      style={{
-                        padding: "12px",
-                        borderRadius: "10px",
-                        border: "1px solid #ccc",
-                      }}
+                      style={{ padding: "12px", borderRadius: "10px", border: "1px solid #ccc" }}
                     />
                   </div>
 
