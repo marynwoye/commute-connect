@@ -15,6 +15,8 @@ import MapSelector from "./MapSelector";
 import { getCommuteProfiles } from "./api";
 import CommuteGroupsPage from "./CommuteGroupsPage";
 import CreateGroupPage from "./CreateGroupPage";
+import MyCommutePage from "./MyCommutePage";
+
 
 import "./ui.css"; // ✅ navbar styles live here
 
@@ -77,6 +79,8 @@ function Navbar({ user, onLogout }) {
         <nav className="navbar-links">
           <Link to="/" className="navlink">Home</Link>
           <Link to="/create-profile" className="navlink">Create Profile</Link>
+          <Link to="/my-commute" className="navlink">My Commute</Link>
+
           <Link to="/map" className="navlink">Map</Link>
           <Link to="/groups" className="navlink">Groups</Link>
           <Link to="/create-group" className="navlink">Create Group</Link>
@@ -105,6 +109,8 @@ function Navbar({ user, onLogout }) {
       <div className={`mobile-menu ${menuOpen ? "open" : ""}`}>
         <Link to="/" className="navlink">Home</Link>
         <Link to="/create-profile" className="navlink">Create Profile</Link>
+        <Link to="/my-commute" className="navlink">My Commute</Link>
+
         <Link to="/map" className="navlink">Map</Link>
         <Link to="/groups" className="navlink">Groups</Link>
         <Link to="/create-group" className="navlink">Create Group</Link>
@@ -162,6 +168,16 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+
+        <Route
+          path="/my-commute"
+          element={
+            <ProtectedRoute user={user}>
+              <MyCommutePage />
+             </ProtectedRoute>
+          }
+        />
+
 
         <Route
           path="/map"
